@@ -18,8 +18,21 @@
         </encoder>
     </appender>
 
+    <appender name="TYPE1_FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_HOME}/type1-converter.log</file>
+        <append>false</append>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <logger name="com.example.strategy.Type2TextConverter" level="DEBUG">
         <appender-ref ref="TYPE2_FILE" />
+    </logger>
+
+    <logger name="com.example.strategy.Type1TextConverter" level="DEBUG">
+        <appender-ref ref="TYPE1_FILE" />
     </logger>
 
     <root level="INFO">

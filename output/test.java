@@ -1,11 +1,13 @@
-if(testTable2BaseEntity.getTestField9() != testTable3BaseEntity.getTestField9()){
-    testTable2BaseEntity.setTestField9(testTable3BaseEntity.getTestField9());
+if(test222.getTestField9() != testTable333.getTestField9()){
+    test222.setTestField9(testTable333.getTestField9());
     this.DSSKK = "";
     this.IN20 = true;
 }
-if(this.AABB != this.DSSKK || testTable2BaseEntity.getTestField9() == ""){
+testTable333.setTestField1(0);
+if(this.AABB != this.DSSKK || test222.getTestField9() == ""){
     this.DCC23 = "";
 }
-if(this.AABB != this.DUUHH && testTable3BaseEntity.getTestField9() == ""){
+this.WBBCC = "";
+if(this.AABB != this.DUUHH && testTable333.getTestField9() == ""){
     this.DMMNN = "";
 }

@@ -18,6 +18,10 @@ public class Type2TextConverter implements TextConverter {
     private static final Pattern DIRECT_PATTERN = Pattern.compile("項目「\\s*D\\\\([^」]+)\\s*」");
     private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)」");
     private static final Pattern COMPARISON_PATTERN = Pattern.compile("(.+)(＝|≠)(.+)");
+    private static final Pattern SIMPLE_ASSIGNMENT_PATTERN = 
+        Pattern.compile("^項目「\\s*([^」]+?)\\s*」に\\s*(ブランク|'[01]')\\s*を代入します");
+    private static final Pattern SIMPLE_EQUALS_PATTERN =
+        Pattern.compile("^項目「([^」]*)\\.(\\(([^)]+)\\))」＝\\s*([０0-9]+)");
 
     private Map<String, ClassInfo> entityInfoMap;
     private Map<String, String> entityFiles;
@@ -38,42 +42,101 @@ public class Type2TextConverter implements TextConverter {
         return null;
     }
 
+    // 添加一个内部类来保存带序号的文本行
+    private static class TextLine {
+        final int lineNumber;
+        final String content;
+        boolean processed;  // 标记是否已处理
+
+        TextLine(int lineNumber, String content) {
+            this.lineNumber = lineNumber;
+            this.content = content;
+            this.processed = false;
+        }
+    }
+
     public List<String> convertFile(List<String> lines) {
-        List<String> results = new ArrayList<>();
-        GeneratedType2JavaInfo currentInfo = null;
+        // 1. 初始化带序号的行列���
+        List<TextLine> textLines = new ArrayList<>();
+        for (int i = 0; i < lines.size(); i++) {
+            textLines.add(new TextLine(i, lines.get(i)));
+        }
+
+        // 2. 存储生成的代码，使用TreeMap保证顺序
+        TreeMap<Integer, String> generatedCode = new TreeMap<>();
         
-        logger.info("Starting to process {} lines", lines.size());
-        
-        for (String line : lines) {
-            line = normalizeSpaces(line);
-            logger.info("Processing normalized line: {}", line);
-            
-            if (line.startsWith("》【条件】")) {
-                logger.info("Found condition start: {}", line);
-                if (currentInfo != null) {
-                    String generatedCode = currentInfo.generateCode();
-                    logger.info("Generated code for previous condition: {}", generatedCode);
-                    results.add(generatedCode);
+        // 3. 首先处理独立的赋值语句（以"項目"开头的行）
+        for (TextLine line : textLines) {
+            String trimmed = line.content.trim();
+            if (trimmed.startsWith("項目「") && !line.content.startsWith(" ") && !line.content.startsWith("　")) {
+                String code = processStandaloneAssignment(normalizeSpaces(trimmed));
+                if (code != null) {
+                    generatedCode.put(line.lineNumber, code);
+                    line.processed = true;
                 }
-                currentInfo = new GeneratedType2JavaInfo();
-                processConditionLine(line, currentInfo);
-            } else if (line.matches("^\\s*(または|かつ)、.*")) {
-                logger.info("Found condition continuation with operator: {}", line);
-                processContinuationLine(line, currentInfo);
-            } else if (line.startsWith("項目「")) {
-                logger.info("Found assignment: {}", line);
-                processAssignmentLine(line, currentInfo);
             }
         }
-        
+
+        // 4. 处理条件块
+        GeneratedType2JavaInfo currentInfo = null;
+        int conditionStartLine = -1;
+
+        for (TextLine line : textLines) {
+            if (line.processed) continue;  // 跳过已处理的行
+            
+            String normalizedLine = normalizeSpaces(line.content);
+            String trimmed = normalizedLine.trim();
+
+            if (trimmed.startsWith("》【条件】")) {
+                if (currentInfo != null) {
+                    generatedCode.put(conditionStartLine, currentInfo.generateCode());
+                }
+                currentInfo = new GeneratedType2JavaInfo();
+                conditionStartLine = line.lineNumber;
+                processConditionLine(trimmed, currentInfo);
+                line.processed = true;
+            }
+            else if (line.content.startsWith(" ") || line.content.startsWith("　")) {
+                if (!line.processed && currentInfo != null) {
+                    if (trimmed.startsWith("または、") || trimmed.startsWith("かつ、")) {
+                        processContinuationLine(trimmed, currentInfo);
+                    } else if (trimmed.startsWith("項目「")) {
+                        processAssignmentLine(trimmed, currentInfo);
+                    }
+                    line.processed = true;
+                }
+            }
+        }
+
+        // 处理最后一个条件块
         if (currentInfo != null) {
-            String generatedCode = currentInfo.generateCode();
-            logger.info("Generated code for final condition: {}", generatedCode);
-            results.add(generatedCode);
+            generatedCode.put(conditionStartLine, currentInfo.generateCode());
+        }
+
+        // 5. 按顺序返回生成的代码
+        return new ArrayList<>(generatedCode.values());
+    }
+
+    private String processStandaloneAssignment(String line) {
+        // 处理简单赋值（带"に...代入します"）
+        Matcher simpleAssignMatcher = SIMPLE_ASSIGNMENT_PATTERN.matcher(line);
+        if (simpleAssignMatcher.find()) {
+            String fieldName = simpleAssignMatcher.group(1).trim().replace("\\", "");
+            logger.info("Found field name with spaces: [{}], after trim: [{}]", 
+                simpleAssignMatcher.group(1), fieldName);
+            return String.format("this.%s = \"\";", fieldName);
         }
         
-        logger.info("Finished processing all lines. Generated {} code blocks", results.size());
-        return results;
+        // 处理简单赋值（带"＝"）
+        Matcher equalsAssignMatcher = SIMPLE_EQUALS_PATTERN.matcher(line);
+        if (equalsAssignMatcher.find()) {
+            String entityId = equalsAssignMatcher.group(1);
+            String value = equalsAssignMatcher.group(4);
+            String instanceName = getInstanceName(entityId);
+            return String.format("%s.setTestField1(%s);", instanceName, value);
+        }
+        
+        return null;
     }
 
     private void processConditionLine(String line, GeneratedType2JavaInfo info) {
@@ -133,63 +196,6 @@ public class Type2TextConverter implements TextConverter {
             }
         } else {
             logger.warn("Failed to match comparison pattern in condition: {}", condition);
-        }
-    }
-
-    private void processAssignmentLine(String line, GeneratedType2JavaInfo info) {
-        // 处理实体字段赋值
-        Matcher entityMatcher = ENTITY_PATTERN.matcher(line);
-        if (entityMatcher.find()) {
-            String entityId = entityMatcher.group(1);
-            String fieldComment = entityMatcher.group(3);
-            
-            // 查找目标值
-            String targetValue = null;
-            String targetField = getEntityFieldReference(entityId, fieldComment);
-            
-            // 查找第二个实体引用（如果存在）
-            Matcher valueMatcher = ENTITY_PATTERN.matcher(line.substring(entityMatcher.end()));
-            if (valueMatcher.find()) {
-                String valueEntityId = valueMatcher.group(1);
-                String valueFieldComment = valueMatcher.group(3);
-                targetValue = getEntityFieldReference(valueEntityId, valueFieldComment);
-            } else if (line.contains("ブランク")) {
-                targetValue = "\"\"";
-            }
-
-            if (targetValue != null && targetField != null) {
-                // 对于实体字段，使用setter方法
-                String setterField = targetField.replace("get", "set").replace("()", "");
-                info.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                    setterField,
-                    targetValue,
-                    GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
-                ));
-            }
-            return;
-        }
-
-        // 处理直接字段赋值
-        Matcher directMatcher = DIRECT_PATTERN.matcher(line);
-        if (directMatcher.find()) {
-            String fieldName = directMatcher.group(1).trim();
-            info.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                "D" + fieldName,  // 移除反斜杠
-                "ブランク",
-                GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
-            ));
-            return;
-        }
-
-        // 处理布尔字段赋值
-        Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
-        if (booleanMatcher.find()) {
-            String fieldName = booleanMatcher.group(1);
-            info.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                fieldName,  // 不需要添加 *
-                "'1'",  // 使用 '1' 表示 true
-                GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
-            ));
         }
     }
 
@@ -331,5 +337,70 @@ public class Type2TextConverter implements TextConverter {
         }
         
         return line;
+    }
+
+    private void processAssignmentLine(String line, GeneratedType2JavaInfo currentInfo) {
+        logger.info("Processing assignment line: {}", line);
+        
+        // 处理实体字段赋值
+        Matcher entityMatcher = ENTITY_PATTERN.matcher(line);
+        if (entityMatcher.find()) {
+            String entityId = entityMatcher.group(1);
+            String fieldComment = entityMatcher.group(3);
+            logger.info("Found entity assignment - id: {}, comment: {}", entityId, fieldComment);
+            
+            // 查找目标值
+            String targetValue = null;
+            String targetField = getEntityFieldReference(entityId, fieldComment);
+            
+            // 查找第二个实体引用（如果存在）
+            Matcher valueMatcher = ENTITY_PATTERN.matcher(line.substring(entityMatcher.end()));
+            if (valueMatcher.find()) {
+                String valueEntityId = valueMatcher.group(1);
+                String valueFieldComment = valueMatcher.group(3);
+                targetValue = getEntityFieldReference(valueEntityId, valueFieldComment);
+                logger.info("Found entity value reference - id: {}, comment: {}", valueEntityId, valueFieldComment);
+            } else if (line.contains("ブランク")) {
+                targetValue = "\"\"";
+                logger.info("Found blank value assignment");
+            }
+
+            if (targetValue != null && targetField != null) {
+                // 对于实体字段，使用setter方法
+                String setterField = targetField.replace("get", "set").replace("()", "");
+                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                    setterField,
+                    targetValue,
+                    GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
+                ));
+                logger.info("Added entity field assignment: {} = {}", setterField, targetValue);
+            }
+            return;
+        }
+
+        // 处理直接字段赋值
+        Matcher directMatcher = DIRECT_PATTERN.matcher(line);
+        if (directMatcher.find()) {
+            String fieldName = directMatcher.group(1).trim();
+            logger.info("Found direct field assignment: {}", fieldName);
+            currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                fieldName,  // 不再添加 "D" 前缀，因为字段名已经包含了
+                "ブランク",
+                GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
+            ));
+            return;
+        }
+
+        // 处理布尔字段赋值
+        Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
+        if (booleanMatcher.find()) {
+            String fieldName = booleanMatcher.group(1);
+            logger.info("Found boolean field assignment: {}", fieldName);
+            currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                fieldName,  // 不需要添加 *
+                "'1'",  // 使用 '1' 表示 true
+                GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
+            ));
+        }
     }
 } 

@@ -2,17 +2,19 @@
  * Generated code from C:\github\biz-to-java\input\t2.txt
  */
 
-if(testTable2BaseEntity.getTestField9() != testTable3BaseEntity.getTestField9()) {
-    testTable2BaseEntity.setTestField9(testTable3BaseEntity.getTestField9());
-    this.DSSKK = "";
+if(test222.getTestField9() != testTable333.getTestField9()) {
+    test222.setTestField9(testTable333.getTestField9());
+    this.SSKK = "";
     this.IN20 = true;
 }
 
-if(this.AABB == this.SSKK || testTable2BaseEntity.getTestField9() == "") {
-    this.DCC23 = "";
+testTable333.setTestField1(0);
+if(this.AABB == this.SSKK || test222.getTestField9() == "") {
+    this.CC23 = "";
 }
 
-if(this.AABB == this.UUHH && testTable3BaseEntity.getTestField9() == "") {
-    this.DMMNN = "";
+this.WBBCC = "";
+if(this.AABB == this.UUHH && testTable333.getTestField9() == "") {
+    this.MMNN = "";
 }
 
