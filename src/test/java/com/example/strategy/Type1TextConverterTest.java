@@ -1,19 +1,30 @@
-﻿package com.example.strategy;
+package com.example.strategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.junit.Test;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import static org.junit.Assert.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.io.File;
 
 public class Type1TextConverterTest {
     private static final Logger logger = LoggerFactory.getLogger(Type1TextConverterTest.class);
     
     private Type1TextConverter converter;
     private List<String> mockEntityLines;
+
+    @BeforeClass
+    public static void setUpClass() {
+        // 创建日志目录
+        File logDir = new File("logs");
+        if (!logDir.exists()) {
+            logDir.mkdirs();
+        }
+    }
 
     @Before
     public void setUp() {

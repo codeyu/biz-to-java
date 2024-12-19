@@ -1,22 +1,52 @@
-﻿package com.example.strategy;
+package com.example.strategy;
 
+import com.example.model.ClassInfo;
+import com.example.model.GeneratedType1JavaInfo;
+import com.example.util.JavaFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.example.util.StringCompareUtil;
-
 public class Type1TextConverter implements TextConverter {
     private static final Logger logger = LoggerFactory.getLogger(Type1TextConverter.class);
     private static final Pattern COMMENT_PATTERN = Pattern.compile("「[^」]*\\.(\\(([^)]+)\\))」");
-    private static final Pattern VALUE_PATTERN = Pattern.compile("(ブランク|０|[0-9]+)");
+    private static final Pattern VALUE_PATTERN = Pattern.compile("(ブランク|０|[0-9]+)(?=[^０-９]*[。．])");
+
+    private ClassInfo entityInfo;
 
     @Override
     public String convertLine(String line, List<String> entityLines) {
+        // 延迟加载实体类信息
+        if (entityInfo == null) {
+            try {
+                entityInfo = JavaFileReader.readJavaFileToModel("input/TestTable1BaseEntity.java");
+            } catch (IOException e) {
+                logger.error("Failed to read entity file", e);
+                return null;
+            }
+        }
+
+        // 解析输入行
+        GeneratedType1JavaInfo info = parseLine(line);
+        if (info == null) {
+            return null;
+        }
+
+        // 查找匹配的字段
+        info.setMatchedField(entityInfo.findFieldByComment(info.getMatchedComment()));
+
+        // 生成代码
+        return info.generateCode();
+    }
+
+    private GeneratedType1JavaInfo parseLine(String line) {
         logger.info("Processing line: {}", line);
-        
+
         // 提取注释
         Matcher commentMatcher = COMMENT_PATTERN.matcher(line);
         if (!commentMatcher.find()) {
@@ -35,49 +65,28 @@ public class Type1TextConverter implements TextConverter {
         String value = valueMatcher.group(1);
         logger.info("Extracted value: {}", value);
 
-        // 在实体类中查找对应字段
-        String fieldInfo = findFieldByComment(comment, entityLines);
-        if (fieldInfo == null) {
-            logger.info("No matching field found");
-            return null;
-        }
-        logger.info("Found field: {}", fieldInfo);
-
-        // 生成Java代码
-        String result = generateJavaCode(fieldInfo, value);
-        logger.info("Generated code: {}", result);
-        return result;
+        return new GeneratedType1JavaInfo(comment, value);
     }
 
-    private String findFieldByComment(String comment, List<String> entityLines) {
-        for (int i = 0; i < entityLines.size(); i++) {
-            String line = entityLines.get(i);
-            if (line.contains("*") && StringCompareUtil.compareJapaneseString(line, comment)) {
-                // 查找下一个private字段声明
-                for (int j = i; j < Math.min(i + 5, entityLines.size()); j++) {
-                    if (entityLines.get(j).contains("private")) {
-                        return entityLines.get(j);
+    public List<GeneratedType1JavaInfo> convertFile(List<String> inputLines) {
+        List<GeneratedType1JavaInfo> results = new ArrayList<>();
+        
+        for (String line : inputLines) {
+            GeneratedType1JavaInfo info = parseLine(line);
+            if (info != null) {
+                if (entityInfo == null) {
+                    try {
+                        entityInfo = JavaFileReader.readJavaFileToModel("input/TestTable1BaseEntity.java");
+                    } catch (IOException e) {
+                        logger.error("Failed to read entity file", e);
+                        continue;
                     }
                 }
+                info.setMatchedField(entityInfo.findFieldByComment(info.getMatchedComment()));
+                results.add(info);
             }
         }
-        return null;
-    }
-
-    private String generateJavaCode(String fieldInfo, String value) {
-        Pattern fieldPattern = Pattern.compile("private\\s+\\w+\\s+(\\w+);");
-        Matcher fieldMatcher = fieldPattern.matcher(fieldInfo);
-        if (!fieldMatcher.find()) {
-            return null;
-        }
-        String fieldName = fieldMatcher.group(1);
-
-        String setValue = value.equals("ブランク") ? "\"\"" : value.equals("０") ? "0" : value;
-        return String.format("testTable1BaseEntity.set%s(%s);", 
-            capitalize(fieldName), setValue);
-    }
-
-    private String capitalize(String str) {
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
+        
+        return results;
     }
 } 

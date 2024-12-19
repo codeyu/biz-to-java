@@ -1,4 +1,4 @@
-﻿converter:
+converter:
   inputFile: input/t1.txt
   entityFile: input/TestTable1BaseEntity.java
   outputFile: output/GeneratedCode.java

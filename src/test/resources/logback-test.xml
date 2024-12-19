@@ -1,13 +1,58 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!-- 定义日志文件的存储地址 -->
+    <property name="LOG_HOME" value="logs" />
+    
+    <!-- 控制台输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <charset>UTF-8</charset>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
-        <withJansi>true</withJansi>
     </appender>
 
+    <!-- 测试日志文件输出 -->
+    <appender name="TEST_FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_HOME}/test.log</file>
+        <append>false</append>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 转换器执行日志文件输出 -->
+    <appender name="CONVERTER_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/converter.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/converter.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 测试类的日志配置 -->
+    <logger name="com.example.strategy.Type1TextConverterTest" level="DEBUG">
+        <appender-ref ref="TEST_FILE" />
+    </logger>
+    
+    <logger name="com.example.util.StringCompareUtilTest" level="DEBUG">
+        <appender-ref ref="TEST_FILE" />
+    </logger>
+
+    <!-- 转换器相关类的日志配置 -->
+    <logger name="com.example.strategy.Type1TextConverter" level="DEBUG">
+        <appender-ref ref="CONVERTER_FILE" />
+    </logger>
+    
+    <logger name="com.example.util.StringCompareUtil" level="DEBUG">
+        <appender-ref ref="CONVERTER_FILE" />
+    </logger>
+
+    <!-- 根日志级别 -->
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
     </root>

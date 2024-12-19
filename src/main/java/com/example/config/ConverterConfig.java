@@ -1,4 +1,4 @@
-﻿package com.example.config;
+package com.example.config;
 
 import org.yaml.snakeyaml.Yaml;
 import org.slf4j.Logger;

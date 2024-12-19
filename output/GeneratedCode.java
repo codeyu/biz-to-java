@@ -1,0 +1,9 @@
+testTable1BaseEntity.setTestField1("");
+testTable1BaseEntity.setTestField2("");
+testTable1BaseEntity.setTestField3("");
+testTable1BaseEntity.setTestField4("");
+testTable1BaseEntity.setTestField5(0);
+testTable1BaseEntity.setTestField6(0);
+testTable1BaseEntity.setTestField7(0);
+testTable1BaseEntity.setTestField8(0);
+testTable1BaseEntity.setTestField9("");

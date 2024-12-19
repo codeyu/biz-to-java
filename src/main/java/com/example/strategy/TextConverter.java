@@ -1,4 +1,4 @@
-﻿package com.example.strategy;
+package com.example.strategy;
 
 import java.util.List;
 
