@@ -18,7 +18,7 @@ public class TextToJavaConverter {
     public static void main(String[] args) {
         try {
             // 解析参数，忽略以 -D 开头的系统属性
-            String converterType = "converterType1"; // 默认值
+            String converterType = "type1"; // 默认值
             for (String arg : args) {
                 if (!arg.startsWith("-D")) {
                     converterType = arg;

@@ -90,9 +90,13 @@ mvn test
 # 编译
 mvn compile
 
+# 打包并跳过测试
+mvn clean package -DskipTests
+
 # 运行程序
 mvn exec:java
 ```
+
 
 ### 添加新的转换器
 

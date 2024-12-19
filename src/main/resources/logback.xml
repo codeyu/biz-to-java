@@ -9,20 +9,20 @@
         </encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/application.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/application.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
+    <appender name="TYPE2_FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_HOME}/type2-converter.log</file>
+        <append>false</append>
         <encoder>
             <charset>UTF-8</charset>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
+    <logger name="com.example.strategy.Type2TextConverter" level="DEBUG">
+        <appender-ref ref="TYPE2_FILE" />
+    </logger>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
     </root>
 </configuration> 

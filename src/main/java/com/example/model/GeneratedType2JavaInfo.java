@@ -102,14 +102,11 @@ public class GeneratedType2JavaInfo {
         public String generateCode() {
             switch (type) {
                 case ENTITY_FIELD:
-                    String setValue = value.contains(".") ? value : convertValue(value);
-                    return String.format("%s = %s;", target, setValue);
+                    return String.format("%s(%s);", target, value);
                 case DIRECT_FIELD:
-                    return String.format("this.%s = %s;", 
-                        target.substring(2), convertValue(value));
+                    return String.format("this.%s = %s;", target, convertValue(value));
                 case BOOLEAN_FIELD:
-                    return String.format("this.%s = true;", 
-                        target.substring(1));
+                    return String.format("this.%s = true;", target);
                 default:
                     return null;
             }

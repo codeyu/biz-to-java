@@ -10,9 +10,9 @@ public class ConverterFactory {
     public static TextConverter getConverter(String type) {
         logger.info("Creating converter for type: {}", type);
         switch (type) {
-            case "converterType1":
+            case "type1":
                 return new Type1TextConverter();
-            case "converterType2":
+            case "type2":
                 return new Type2TextConverter();
             default:
                 throw new IllegalArgumentException("Unsupported converter type: " + type);

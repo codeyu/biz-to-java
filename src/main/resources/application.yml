@@ -1,9 +1,9 @@
-converterType1:
+type1:
   inputFile: input/t1.txt
   entityFile: 
       - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
   outputFile: output/GeneratedCode.java
-converterType2:
+type2:
   inputFile: input/t2.txt
   entityFile: 
       - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
