@@ -1,18 +1,30 @@
 type1:
   inputFile: input/t1.txt
   entityFile: 
-      - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
+    - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
   entityInstance:
-      - 手袋(Ｌ０１)=test001
+    - 手袋(Ｌ０１)=test001
   outputFile: output/GeneratedCode.java
 type2:
   inputFile: input/t2.txt
   entityFile: 
-      - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
-      - ABC(Ｌ０２)=input/TestTable2BaseEntity.java
-      - ABC(Ｌ０３)=input/TestTable3BaseEntity.java
+    - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
+    - ABC(Ｌ０２)=input/TestTable2BaseEntity.java
+    - ABC(Ｌ０３)=input/TestTable3BaseEntity.java
   entityInstance:
-      - 手袋(Ｌ０１)=testTable1
-      - ABC(Ｌ０２)=test222
-      - ABC(Ｌ０３)=testTable333
+    - 手袋(Ｌ０１)=testTable1
+    - ABC(Ｌ０２)=test222
+    - ABC(Ｌ０３)=testTable333
   outputFile: output/GeneratedCode2.java
+  logicOperatorMapping:
+    "=\"\"": "StrUtil.isEmpty"
+    "!=\"\"": "!StrUtil.isEmpty"
+    "=str": "StrUtil.eq"
+    "!=str": "!StrUtil.eq"
+    "=num": "NumUtil.eq"
+    "!=num": "!NumUtil.eq"
+    ">=": "NumUtil.ge"
+    "<=num": "NumUtil.le"
+    ">num": "NumUtil.gt"
+    "<num": "NumUtil.lt"
+  enableLogicConversion: true

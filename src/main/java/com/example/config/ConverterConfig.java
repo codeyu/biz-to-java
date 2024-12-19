@@ -22,6 +22,7 @@ public class ConverterConfig {
     private Map<String, String> entityInstances;  // 实体实例名映射
     private String outputFile;         // 输出文件路径
     private final String baseDir;
+    private boolean enableLogicConversion;  // 添加这行
 
     public ConverterConfig(String converterType) {
         this.converterType = converterType;
@@ -63,6 +64,11 @@ public class ConverterConfig {
                 }
             }
             
+            // 加载逻辑转换开关
+            Object enableLogic = converterConfig.get("enableLogicConversion");
+            this.enableLogicConversion = enableLogic != null && (Boolean) enableLogic;
+            logger.info("Logic conversion enabled: {}", this.enableLogicConversion);
+            
             logger.info("Configuration loaded successfully for {}", converterType);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config file", e);
@@ -80,4 +86,7 @@ public class ConverterConfig {
     public String getOutputFile() { return outputFile; }
     public String getConverterType() { return converterType; }
     public Map<String, String> getEntityInstances() { return entityInstances; }
+    public boolean isEnableLogicConversion() {
+        return enableLogicConversion;
+    }
 } 

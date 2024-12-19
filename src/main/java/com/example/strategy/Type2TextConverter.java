@@ -2,6 +2,7 @@ package com.example.strategy;
 
 import com.example.model.*;
 import com.example.util.JavaFileReader;
+import com.example.util.LogicOperatorPostProcessor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,8 @@ public class Type2TextConverter implements TextConverter {
     private Map<String, ClassInfo> entityInfoMap;
     private Map<String, String> entityFiles;
     private Map<String, String> entityInstances;
+    private boolean enableLogicConversion = false;
+    private LogicOperatorPostProcessor logicProcessor;
 
     public void setEntityFiles(Map<String, String> entityFiles) {
         this.entityFiles = entityFiles;
@@ -34,6 +37,13 @@ public class Type2TextConverter implements TextConverter {
 
     public void setEntityInstances(Map<String, String> entityInstances) {
         this.entityInstances = entityInstances;
+    }
+
+    public void setEnableLogicConversion(boolean enable) {
+        this.enableLogicConversion = enable;
+        if (enable && logicProcessor == null) {
+            logicProcessor = new LogicOperatorPostProcessor();
+        }
     }
 
     @Override
@@ -115,7 +125,24 @@ public class Type2TextConverter implements TextConverter {
         }
 
         // 5. 按顺序返回生成的代码
-        return new ArrayList<>(generatedCode.values());
+        List<String> generatedCodeList = new ArrayList<>(generatedCode.values());
+        
+        // 如果启用了逻辑转换，进行后处理
+        if (enableLogicConversion && logicProcessor != null) {
+            List<String> processedCode = new ArrayList<>();
+            for (String code : generatedCodeList) {
+                try {
+                    String processed = logicProcessor.process(code);
+                    processedCode.add(processed);
+                } catch (Exception e) {
+                    logger.error("Error processing code: {}", code, e);
+                    processedCode.add(code);  // 出错时保留原代码
+                }
+            }
+            return processedCode;
+        }
+        
+        return generatedCodeList;
     }
 
     private String processStandaloneAssignment(String line) {
@@ -398,7 +425,7 @@ public class Type2TextConverter implements TextConverter {
             String fieldName = booleanMatcher.group(1);
             logger.info("Found boolean field assignment: {}", fieldName);
             currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                fieldName,  // 不需���添加 *
+                fieldName,  // 不需要添加 *
                 "'1'",  // 使用 '1' 表示 true
                 GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
             ));
