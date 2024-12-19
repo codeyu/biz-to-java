@@ -19,6 +19,7 @@ public class ConverterConfig {
     private String converterType;      // 转换器类型 "converterType1" 或 "converterType2"
     private String inputFile;          // 输入文件路径
     private Map<String, String> entityFiles;  // 实体文件映射
+    private Map<String, String> entityInstances;  // 实体实例名映射
     private String outputFile;         // 输出文件路径
     private final String baseDir;
 
@@ -26,6 +27,7 @@ public class ConverterConfig {
         this.converterType = converterType;
         this.baseDir = System.getProperty("user.dir");
         this.entityFiles = new HashMap<>();
+        this.entityInstances = new HashMap<>();
         loadConfig();
     }
 
@@ -52,6 +54,15 @@ public class ConverterConfig {
                 }
             }
             
+            // 处理实体实例名映射
+            List<String> entityInstancesList = (List<String>) converterConfig.get("entityInstance");
+            for (String mapping : entityInstancesList) {
+                String[] parts = mapping.split("=");
+                if (parts.length == 2) {
+                    entityInstances.put(parts[0].trim(), parts[1].trim());
+                }
+            }
+            
             logger.info("Configuration loaded successfully for {}", converterType);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config file", e);
@@ -68,4 +79,5 @@ public class ConverterConfig {
     public Map<String, String> getEntityFiles() { return entityFiles; }
     public String getOutputFile() { return outputFile; }
     public String getConverterType() { return converterType; }
+    public Map<String, String> getEntityInstances() { return entityInstances; }
 } 

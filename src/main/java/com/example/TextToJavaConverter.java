@@ -32,7 +32,9 @@ public class TextToJavaConverter {
             
             // 如果是 Type2 转换器，设置实体文件映射
             if (converter instanceof Type2TextConverter) {
-                ((Type2TextConverter) converter).setEntityFiles(config.getEntityFiles());
+                Type2TextConverter type2Converter = (Type2TextConverter) converter;
+                type2Converter.setEntityFiles(config.getEntityFiles());
+                type2Converter.setEntityInstances(config.getEntityInstances());
             }
             
             // 读取输入文本

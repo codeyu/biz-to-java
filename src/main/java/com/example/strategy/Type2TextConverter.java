@@ -21,10 +21,15 @@ public class Type2TextConverter implements TextConverter {
 
     private Map<String, ClassInfo> entityInfoMap;
     private Map<String, String> entityFiles;
+    private Map<String, String> entityInstances;
 
     public void setEntityFiles(Map<String, String> entityFiles) {
         this.entityFiles = entityFiles;
         this.entityInfoMap = new HashMap<>();
+    }
+
+    public void setEntityInstances(Map<String, String> entityInstances) {
+        this.entityInstances = entityInstances;
     }
 
     @Override
@@ -193,7 +198,8 @@ public class Type2TextConverter implements TextConverter {
         if (entityInfo != null) {
             FieldInfo fieldInfo = entityInfo.findFieldByComment(fieldComment);
             if (fieldInfo != null) {
-                String instanceName = getInstanceName(entityInfo.getClassName());
+                String instanceName = getInstanceName(entityId);
+                logger.info("Using instance name '{}' for entity ID '{}'", instanceName, entityId);
                 return instanceName + "." + fieldInfo.getGetMethod() + "()";
             }
         }
@@ -201,9 +207,18 @@ public class Type2TextConverter implements TextConverter {
         return null;
     }
 
-    private String getInstanceName(String className) {
-        // 将类名转换为实例名（首字母小写）
-        return Character.toLowerCase(className.charAt(0)) + className.substring(1);
+    private String getInstanceName(String entityId) {
+        // 从配置中获取实例名，如果没有配置则使用默认的命名规则
+        if (entityInstances != null && entityInstances.containsKey(entityId)) {
+            String instanceName = entityInstances.get(entityId);
+            logger.info("Found configured instance name '{}' for entity ID '{}'", instanceName, entityId);
+            return instanceName;
+        }
+        // 默认命名规则（首字母小写）
+        String className = entityInfoMap.get(entityId).getClassName();
+        String defaultName = Character.toLowerCase(className.charAt(0)) + className.substring(1);
+        logger.info("Using default instance name '{}' for entity ID '{}'", defaultName, entityId);
+        return defaultName;
     }
 
     private ClassInfo getEntityInfo(String entityId) {
