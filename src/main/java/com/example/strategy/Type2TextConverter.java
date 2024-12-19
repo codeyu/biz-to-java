@@ -56,10 +56,11 @@ public class Type2TextConverter implements TextConverter {
     }
 
     public List<String> convertFile(List<String> lines) {
-        // 1. 初始化带序号的行列���
+        // 1. 初始化带序号的行列表，同时处理双引号
         List<TextLine> textLines = new ArrayList<>();
         for (int i = 0; i < lines.size(); i++) {
-            textLines.add(new TextLine(i, lines.get(i)));
+            String cleanedLine = removeQuotes(lines.get(i));
+            textLines.add(new TextLine(i, cleanedLine));
         }
 
         // 2. 存储生成的代码，使用TreeMap保证顺序
@@ -397,10 +398,39 @@ public class Type2TextConverter implements TextConverter {
             String fieldName = booleanMatcher.group(1);
             logger.info("Found boolean field assignment: {}", fieldName);
             currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                fieldName,  // 不需要添加 *
+                fieldName,  // 不需���添加 *
                 "'1'",  // 使用 '1' 表示 true
                 GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
             ));
         }
+    }
+
+    /**
+     * 去除行首和行尾的双引号，保留行中间的双引号
+     */
+    private String removeQuotes(String line) {
+        if (line == null) return null;
+        
+        // 记录原始行用于日志
+        String originalLine = line;
+        
+        // 去除前后空格
+        line = line.trim();
+        
+        // 处理开头的双引号
+        if (line.startsWith("\"")) {
+            line = line.substring(1);
+        }
+        
+        // 处理结尾的双引号
+        if (line.endsWith("\"")) {
+            line = line.substring(0, line.length() - 1);
+        }
+        
+        if (!line.equals(originalLine)) {
+            logger.debug("Quote removal - Original: [{}], Cleaned: [{}]", originalLine, line);
+        }
+        
+        return line;
     }
 } 
