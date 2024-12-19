@@ -37,6 +37,7 @@ public class TextToJavaConverter {
                 type2Converter.setEntityInstances(config.getEntityInstances());
             } else if (converter instanceof Type1TextConverter) {
                 Type1TextConverter type1Converter = (Type1TextConverter) converter;
+                type1Converter.setEntityFiles(config.getEntityFiles());
                 type1Converter.setEntityInstances(config.getEntityInstances());
                 logger.info("Set entity instances for Type1 converter: {}", config.getEntityInstances());
             }
