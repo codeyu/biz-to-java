@@ -10,14 +10,14 @@ public class StringCompareUtil {
         }
         
         // 1. 去除所有空格和特殊字符
-        str1 = str1.replaceAll("[\\s*\"./\\[\\]]", "");
-        str2 = str2.replaceAll("[\\s*\"./\\[\\]]", "");
+        str1 = str1.replaceAll("[\\s　*\"./\\[\\]]", "");
+        str2 = str2.replaceAll("[\\s　*\"./\\[\\]]", "");
         
         // 2. 转换全角数字为半角数字
         str1 = convertFullWidthNumberToHalf(str1);
         str2 = convertFullWidthNumberToHalf(str2);
         
-        // 3. 标准化日文字符
+        // 3. 标准化日文字符（包括假名）
         str1 = normalizeJapanese(str1);
         str2 = normalizeJapanese(str2);
         
@@ -41,7 +41,7 @@ public class StringCompareUtil {
         str = Normalizer.normalize(str, Normalizer.Form.NFKC);
         
         // 移除所有空格和标点符号
-        str = str.replaceAll("[\\p{Punct}\\s]", "");
+        str = str.replaceAll("[\\p{Punct}\\s　]", "");
         
         return str;
     }

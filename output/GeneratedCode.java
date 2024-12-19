@@ -11,7 +11,7 @@ testTable1BaseEntity.setTestField2("");
 // 生活／仕事　常務コード
 testTable1BaseEntity.setTestField3("");
 
-// 請求　事実コード
+// 請求　事実ｺｰﾄﾞ
 testTable1BaseEntity.setTestField4("");
 
 // 請求 情報
@@ -20,7 +20,7 @@ testTable1BaseEntity.setTestField5(0);
 // 請求　時間
 testTable1BaseEntity.setTestField6(0);
 
-// 発行日
+// 発行日１２３
 testTable1BaseEntity.setTestField7(0);
 
 // 性能調査ー区別

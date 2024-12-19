@@ -1,5 +1,6 @@
 package com.example.model;
 
+import com.example.util.StringCompareUtil;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,7 +39,8 @@ public class ClassInfo {
 
     public FieldInfo findFieldByComment(String comment) {
         return fields.stream()
-            .filter(field -> field.getFieldComment().equals(comment))
+            .filter(field -> StringCompareUtil.compareJapaneseString(
+                field.getFieldComment(), comment))
             .findFirst()
             .orElse(null);
     }

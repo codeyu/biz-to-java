@@ -34,19 +34,19 @@ public class TestTable1BaseEntity {
     private String testField4;
 
     /**
-     * [test_field_5] 請求 情報
+     * [test_field_5] 請求情報
      */
     @Column(columnName = "test_field_5", columnOrder = 5, primary = false, dbType = "integer", javaType = "Integer", comment = "字段5")
     private Integer testField5;
 
     /**
-     * [test_field_6] 請求　時間
+     * [test_field_6] 請求時間
      */
     @Column(columnName = "test_field_6", columnOrder = 6, primary = false, dbType = "integer", javaType = "Integer", comment = "字段6")
     private Integer testField6;
 
     /**
-     * [test_field_7] 発行日
+     * [test_field_7] 発行日123
      */
     @Column(columnName = "test_field_7", columnOrder = 7, primary = false, dbType = "date", javaType = "Date", comment = "字段7")
     private Date testField7;
