@@ -2,8 +2,9 @@ package com.example;
 
 import com.example.config.ConverterConfig;
 import com.example.factory.ConverterFactory;
-import com.example.model.GeneratedType1JavaInfo;
+import com.example.strategy.TextConverter;
 import com.example.strategy.Type1TextConverter;
+import com.example.strategy.Type2TextConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,14 +17,26 @@ public class TextToJavaConverter {
     
     public static void main(String[] args) {
         try {
-            ConverterConfig config = new ConverterConfig();
-            Type1TextConverter converter = (Type1TextConverter) ConverterFactory.getConverter(config.getGenType());
+            // 解析参数，忽略以 -D 开头的系统属性
+            String converterType = "converterType1"; // 默认值
+            for (String arg : args) {
+                if (!arg.startsWith("-D")) {
+                    converterType = arg;
+                    break;
+                }
+            }
+            
+            logger.info("Using converter type: {}", converterType);
+            ConverterConfig config = new ConverterConfig(converterType);
+            TextConverter converter = ConverterFactory.getConverter(config.getConverterType());
+            
+            // 如果是 Type2 转换器，设置实体文件映射
+            if (converter instanceof Type2TextConverter) {
+                ((Type2TextConverter) converter).setEntityFiles(config.getEntityFiles());
+            }
             
             // 读取输入文本
             List<String> inputLines = readFile(config.getInputFile());
-            
-            // 转换所有行并收集结果
-            List<GeneratedType1JavaInfo> results = converter.convertFile(inputLines);
             
             // 创建输出目录
             new File(config.getOutputFile()).getParentFile().mkdirs();
@@ -39,13 +52,20 @@ public class TextToJavaConverter {
                 writer.println(" */");
                 writer.println();
 
-                for (GeneratedType1JavaInfo info : results) {
-                    String code = info.generateCode();
-                    if (code != null) {
+                if (converter instanceof Type2TextConverter) {
+                    List<String> results = ((Type2TextConverter) converter).convertFile(inputLines);
+                    for (String code : results) {
                         writer.println(code);
-                        // 如果不是TODO注释，添加空行
-                        if (!code.startsWith("//TODO:")) {
-                            writer.println();
+                    }
+                } else {
+                    // Type1 转换器处理
+                    for (String line : inputLines) {
+                        String code = converter.convertLine(line, null);
+                        if (code != null) {
+                            writer.println(code);
+                            if (!code.startsWith("//TODO:")) {
+                                writer.println();
+                            }
                         }
                     }
                 }

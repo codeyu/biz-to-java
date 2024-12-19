@@ -1,3 +1,9 @@
-﻿{
-    "java.configuration.updateBuildConfiguration": "disabled"
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.project.sourcePaths": ["src/main/java", "src/test/java"],
+    "java.project.outputPath": "target/classes",
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar"
+    ],
+    "files.encoding": "utf8"
 }
