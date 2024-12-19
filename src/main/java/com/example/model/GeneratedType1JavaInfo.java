@@ -28,7 +28,8 @@ public class GeneratedType1JavaInfo {
 
     public String generateCode() {
         if (matchedField == null) {
-            return null;
+            // 如果没有找到匹配的字段，生成TODO注释
+            return String.format("//TODO: [%s]", matchedComment);
         }
 
         String setValue;
@@ -37,10 +38,14 @@ public class GeneratedType1JavaInfo {
         } else if (matchedValue.equals("０") || matchedValue.matches("[0-9]+")) {
             setValue = matchedValue.equals("０") ? "0" : matchedValue;
         } else {
-            return null;
+            return String.format("//TODO: [%s] - Unsupported value: %s", 
+                matchedComment, matchedValue);
         }
 
-        return String.format("testTable1BaseEntity.%s(%s);", 
-            matchedField.getSetMethod(), setValue);
+        // 添加注释和代码
+        return String.format("// %s\ntestTable1BaseEntity.%s(%s);", 
+            matchedComment,
+            matchedField.getSetMethod(), 
+            setValue);
     }
 } 

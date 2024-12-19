@@ -32,10 +32,21 @@ public class TextToJavaConverter {
             try (PrintWriter writer = new PrintWriter(
                 new OutputStreamWriter(
                     new FileOutputStream(config.getOutputFile()), "UTF-8"))) {
+                
+                // 写入文件头注释
+                writer.println("/**");
+                writer.println(" * Generated code from " + config.getInputFile());
+                writer.println(" */");
+                writer.println();
+
                 for (GeneratedType1JavaInfo info : results) {
                     String code = info.generateCode();
                     if (code != null) {
                         writer.println(code);
+                        // 如果不是TODO注释，添加空行
+                        if (!code.startsWith("//TODO:")) {
+                            writer.println();
+                        }
                     }
                 }
             }
