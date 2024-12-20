@@ -141,6 +141,9 @@ public class LogicOperatorPostProcessor {
         if (leftDef == null || rightDef == null) {
             logger.warn("Variable definition not found - leftVar: {} ({}), rightVar: {} ({})", 
                 leftVar, leftDef, rightVar, rightDef);
+        } else {
+            logger.info("Found variable definitions - leftVar: {} (type: {}), rightVar: {} (type: {})", 
+                leftVar, leftDef.getType(), rightVar, rightDef.getType());
         }
         
         // 如果任一变量是数字类型，使用数字比较
@@ -154,11 +157,12 @@ public class LogicOperatorPostProcessor {
                 case ">=": return String.format("NumUtil.ge(%s, %s)", left, right);
                 case "<": return String.format("NumUtil.lt(%s, %s)", left, right);
                 case "<=": return String.format("NumUtil.le(%s, %s)", left, right);
+                default: return null;
             }
         }
         
-        // 默认使用字符串比较（当变量定义找不到或者不是数字类型时）
-        logger.debug("Using default string comparison for {} {} {}", left, operator, right);
+        // 如果两个变量都是字符串类型，或者类型未知，使用字符串比较
+        logger.debug("Using string comparison for {} {} {}", left, operator, right);
         if (operator.equals("==")) {
             return String.format("StrUtil.eq(%s, %s)", left, right);
         } else if (operator.equals("!=")) {
