@@ -72,8 +72,7 @@ converter:
    ```bash
    mvn clean package
    mvn exec:java
-   mvn exec:java -Dexec.arguments=converterType2
-   mvn exec:java -Dexec.args="converterType2"
+   mvn exec:java -Dexec.args="type2"
    ```
 
 ## 开发指南

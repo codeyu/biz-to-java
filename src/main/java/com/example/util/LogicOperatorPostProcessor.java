@@ -8,17 +8,20 @@ import java.util.regex.Pattern;
 public class LogicOperatorPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(LogicOperatorPostProcessor.class);
     
-    private static final Pattern IF_PATTERN = Pattern.compile("if\\((.+?)\\)");
+    private static final Pattern IF_PATTERN = Pattern.compile("if\\s*\\((.+?)\\)\\s*\\{");
     private static final Pattern CONDITION_PATTERN = 
         Pattern.compile("([^=!<>\\s]+)\\s*(==|!=|>=|<=|>|<)\\s*([^\\s&|]+)");
 
     public String process(String code) {
-        if (!code.startsWith("if")) {
+        logger.debug("Processing code: {}", code);
+        if (!code.trim().startsWith("if")) {
+            logger.debug("Not an if statement, returning original code");
             return code;
         }
 
         Matcher ifMatcher = IF_PATTERN.matcher(code);
         if (!ifMatcher.find()) {
+            logger.debug("No if condition found, returning original code");
             return code;
         }
 
@@ -28,7 +31,7 @@ public class LogicOperatorPostProcessor {
         // 只有当条件确实被修改时才返回新代码
         if (!condition.equals(processedCondition)) {
             String newCode = code.replace(condition, processedCondition);
-            logger.debug("Converted condition from [{}] to [{}]", condition, processedCondition);
+            logger.info("Converted condition from [{}] to [{}]", condition, processedCondition);
             return newCode;
         }
         
@@ -36,15 +39,19 @@ public class LogicOperatorPostProcessor {
     }
 
     private String processCondition(String condition) {
+        logger.debug("Processing condition: {}", condition);
         StringBuffer result = new StringBuffer();
         Matcher matcher = CONDITION_PATTERN.matcher(condition);
         
         while (matcher.find()) {
-            String left = matcher.group(1);
+            String left = matcher.group(1).trim();
             String operator = matcher.group(2);
-            String right = matcher.group(3);
+            String right = matcher.group(3).trim();
             
+            logger.debug("Found comparison: left=[{}], operator=[{}], right=[{}]", left, operator, right);
             String replacement = convertComparison(left, operator, right);
+            logger.debug("Converted to: {}", replacement);
+            
             matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(result);
@@ -63,7 +70,7 @@ public class LogicOperatorPostProcessor {
         }
         
         // 2. 数字比较
-        if (right.matches("\\d+")) {
+        if (right.matches("[0-9]+")) {
             switch (operator) {
                 case "==": return String.format("NumUtil.eq(%s, %s)", left, right);
                 case "!=": return String.format("!NumUtil.eq(%s, %s)", left, right);
@@ -84,6 +91,6 @@ public class LogicOperatorPostProcessor {
         }
         
         // 如果没有匹配任何规则，返回原始比较
-        return left + " " + operator + " " + right;
+        return String.format("%s %s %s", left, operator, right);
     }
 } 

@@ -10,6 +10,10 @@ import java.util.*;
 import java.util.regex.*;
 import java.io.IOException;
 
+/**
+ * Type2 文本转换器
+ * 使用 UTF-8 编码
+ */
 public class Type2TextConverter implements TextConverter {
     private static final Logger logger = LoggerFactory.getLogger(Type2TextConverter.class);
     
@@ -119,7 +123,7 @@ public class Type2TextConverter implements TextConverter {
             }
         }
 
-        // 处理最后一个条件块
+        // 理最后一个条件块
         if (currentInfo != null) {
             generatedCode.put(conditionStartLine, currentInfo.generateCode());
         }
@@ -129,10 +133,13 @@ public class Type2TextConverter implements TextConverter {
         
         // 如果启用了逻辑转换，进行后处理
         if (enableLogicConversion && logicProcessor != null) {
+            logger.info("Logic conversion is enabled, processing {} lines", generatedCodeList.size());
             List<String> processedCode = new ArrayList<>();
             for (String code : generatedCodeList) {
                 try {
                     String processed = logicProcessor.process(code);
+                    logger.info("Original code: [{}]", code);
+                    logger.info("Processed code: [{}]", processed);
                     processedCode.add(processed);
                 } catch (Exception e) {
                     logger.error("Error processing code: {}", code, e);

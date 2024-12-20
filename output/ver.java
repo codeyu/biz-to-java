@@ -8,11 +8,11 @@ if(test222.getTestField9() != testTable333.getTestField9()) {
 }
 
 testTable333.setTestField1(0);
-if(this.AABB == this.SSKK || StrUtil.isEmpty(test222.getTestField9())) {
+if(this.AABB == this.SSKK || test222.getTestField9() == "") {
 }
 
 this.WBBCC = "";
-if(this.AABB == this.UUHH && StrUtil.isEmpty(testTable333.getTestField9())) {
+if(this.AABB == this.UUHH && testTable333.getTestField9() == "") {
     this.MMNN = "";
 }
 
