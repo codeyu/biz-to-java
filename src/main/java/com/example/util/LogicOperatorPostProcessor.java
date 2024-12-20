@@ -138,18 +138,17 @@ public class LogicOperatorPostProcessor {
         VariableDefinition rightDef = variableDefinitions != null ? variableDefinitions.get(rightVar) : null;
         
         // 记录日志
-        if (leftDef == null || rightDef == null) {
-            logger.warn("Variable definition not found - leftVar: {} ({}), rightVar: {} ({})", 
-                leftVar, leftDef, rightVar, rightDef);
-        } else {
-            logger.info("Found variable definitions - leftVar: {} (type: {}), rightVar: {} (type: {})", 
-                leftVar, leftDef.getType(), rightVar, rightDef.getType());
-        }
+        logger.debug("Variable definitions - left: {} ({}), right: {} ({})", 
+            leftVar, leftDef != null ? leftDef.getType() : "null",
+            rightVar, rightDef != null ? rightDef.getType() : "null");
+
+        // 检查变量类型
+        boolean isLeftNumeric = leftDef != null && leftDef.isNumericType();
+        boolean isRightNumeric = rightDef != null && rightDef.isNumericType();
         
-        // 如果任一变量是数字类型，使用数字比较
-        if ((leftDef != null && leftDef.isNumericType()) || 
-            (rightDef != null && rightDef.isNumericType())) {
-            logger.debug("Using numeric comparison for {} {} {}", left, operator, right);
+        // 如果两个变量都找到了定义，并且至少一个是数字类型
+        if (leftDef != null && rightDef != null && (isLeftNumeric || isRightNumeric)) {
+            logger.debug("Using numeric comparison because variables are numeric types");
             switch (operator) {
                 case "==": return String.format("NumUtil.eq(%s, %s)", left, right);
                 case "!=": return String.format("!NumUtil.eq(%s, %s)", left, right);
@@ -157,17 +156,17 @@ public class LogicOperatorPostProcessor {
                 case ">=": return String.format("NumUtil.ge(%s, %s)", left, right);
                 case "<": return String.format("NumUtil.lt(%s, %s)", left, right);
                 case "<=": return String.format("NumUtil.le(%s, %s)", left, right);
-                default: return null;
             }
         }
         
-        // 如果两个变量都是字符串类型，或者类型未知，使用字符串比较
-        logger.debug("Using string comparison for {} {} {}", left, operator, right);
+        // 如果找不到变量定义或者都是字符串类型，使用字符串比较
+        logger.debug("Using string comparison as fallback");
         if (operator.equals("==")) {
             return String.format("StrUtil.eq(%s, %s)", left, right);
         } else if (operator.equals("!=")) {
             return String.format("!StrUtil.eq(%s, %s)", left, right);
         }
+        
         return null;
     }
 

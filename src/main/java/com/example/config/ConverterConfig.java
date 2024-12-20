@@ -23,6 +23,7 @@ public class ConverterConfig {
     private String outputFile;         // 输出文件路径
     private final String baseDir;
     private boolean enableLogicConversion;  // 添加这行
+    private String defineFile;  // 添加字段
 
     public ConverterConfig(String converterType) {
         this.converterType = converterType;
@@ -69,6 +70,10 @@ public class ConverterConfig {
             this.enableLogicConversion = enableLogic != null && (Boolean) enableLogic;
             logger.info("Logic conversion enabled: {}", this.enableLogicConversion);
             
+            // 加载 defineFile 配置
+            this.defineFile = resolvePath((String) converterConfig.get("defineFile"));
+            logger.info("Loaded define file path: {}", this.defineFile);
+            
             logger.info("Configuration loaded successfully for {}", converterType);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config file", e);
@@ -88,5 +93,8 @@ public class ConverterConfig {
     public Map<String, String> getEntityInstances() { return entityInstances; }
     public boolean isEnableLogicConversion() {
         return enableLogicConversion;
+    }
+    public String getDefineFile() {
+        return defineFile;
     }
 } 

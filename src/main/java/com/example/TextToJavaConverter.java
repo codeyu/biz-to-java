@@ -36,6 +36,8 @@ public class TextToJavaConverter {
                 type2Converter.setEntityFiles(config.getEntityFiles());
                 type2Converter.setEntityInstances(config.getEntityInstances());
                 type2Converter.setEnableLogicConversion(config.isEnableLogicConversion());
+                type2Converter.setDefineFile(config.getDefineFile());
+                logger.info("Set define file for Type2 converter: {}", config.getDefineFile());
             } else if (converter instanceof Type1TextConverter) {
                 Type1TextConverter type1Converter = (Type1TextConverter) converter;
                 type1Converter.setEntityFiles(config.getEntityFiles());

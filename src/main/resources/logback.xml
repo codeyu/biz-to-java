@@ -35,6 +35,14 @@
         <appender-ref ref="TYPE1_FILE" />
     </logger>
 
+    <logger name="com.example.util.LogicOperatorPostProcessor" level="DEBUG">
+        <appender-ref ref="TYPE2_FILE" />
+    </logger>
+
+    <logger name="com.example.util.VariableDefinitionReader" level="DEBUG">
+        <appender-ref ref="TYPE2_FILE" />
+    </logger>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
     </root>

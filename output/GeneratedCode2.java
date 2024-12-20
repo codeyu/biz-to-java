@@ -12,7 +12,7 @@ if(StrUtil.eq(this.DAABB, this.DSSKK) || StrUtil.eq(test222.getTestField9(), "")
 }
 
 this.WBBCC = "";
-if(StrUtil.eq(this.DCC23, this.DUUHH) && StrUtil.eq(testTable333.getTestField9(), "")) {
+if(NumUtil.eq(this.DCC23, this.DUUHH) && StrUtil.eq(testTable333.getTestField9(), "")) {
     this.DMMNN = "";
 }
 
