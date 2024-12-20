@@ -21,7 +21,7 @@ public class Type2TextConverter implements TextConverter {
     private static final Pattern CONDITION_START = Pattern.compile("》【条件】(.+)のとき");
     private static final Pattern CONDITION_CONTINUE = Pattern.compile("^\\s*(または|かつ)、(.+)のとき");
     private static final Pattern ENTITY_PATTERN = Pattern.compile("項目「([^」]*)\\.(\\(([^)]+)\\))」");
-    private static final Pattern DIRECT_PATTERN = Pattern.compile("項目「\\s*D\\\\([^」]+)\\s*」");
+    private static final Pattern DIRECT_PATTERN = Pattern.compile("項目「\\s*([A-Z])\\\\([^」]+)\\s*」");
     private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)」");
     private static final Pattern COMPARISON_PATTERN = Pattern.compile("(.+)(＝|≠)(.+)");
     private static final Pattern SIMPLE_ASSIGNMENT_PATTERN = 
@@ -93,7 +93,7 @@ public class Type2TextConverter implements TextConverter {
         // 2. 存储生成的代码，使用TreeMap保证顺序
         TreeMap<Integer, String> generatedCode = new TreeMap<>();
         
-        // 3. 首先处理独立的赋值语句（以"項目"开头的行）
+        // 3. 首先处理独立��赋值语句（以"項目"开头的行）
         for (TextLine line : textLines) {
             String trimmed = line.content.trim();
             if (trimmed.startsWith("項目「") && !line.content.startsWith(" ") && !line.content.startsWith("　")) {
@@ -169,9 +169,18 @@ public class Type2TextConverter implements TextConverter {
         // 处理简单赋值（带"に...代入します"）
         Matcher simpleAssignMatcher = SIMPLE_ASSIGNMENT_PATTERN.matcher(line);
         if (simpleAssignMatcher.find()) {
-            String fieldName = simpleAssignMatcher.group(1).trim().replace("\\", "");
-            logger.info("Found field name with spaces: [{}], after trim: [{}]", 
-                simpleAssignMatcher.group(1), fieldName);
+            String fieldName = simpleAssignMatcher.group(1).trim();
+            // 处理 D\AABB 格式的字段名
+            Matcher directMatcher = DIRECT_PATTERN.matcher(fieldName);
+            if (directMatcher.find()) {
+                String prefix = directMatcher.group(1);  // 获取前缀（如 "D"）
+                String name = directMatcher.group(2);    // 获取名称（如 "AABB"）
+                fieldName = prefix + name;              // 组合（如 "DAABB"）
+                logger.info("Processed field name: prefix=[{}], name=[{}], result=[{}]", 
+                    prefix, name, fieldName);
+            } else {
+                fieldName = fieldName.replace("\\", "");
+            }
             return String.format("this.%s = \"\";", fieldName);
         }
         
@@ -313,8 +322,12 @@ public class Type2TextConverter implements TextConverter {
         // 处理直接字段引用
         Matcher directMatcher = DIRECT_PATTERN.matcher(text);
         if (directMatcher.find()) {
-            String fieldName = directMatcher.group(1).trim();
-            return "this." + fieldName;  // 移除反斜杠
+            String prefix = directMatcher.group(1);  // 获取前缀（如 "D"）
+            String name = directMatcher.group(2);    // 获取名称（如 "AABB"）
+            String fieldName = prefix + name;        // 组合（如 "DAABB"）
+            logger.info("Found direct field reference: prefix=[{}], name=[{}], result=[{}]", 
+                prefix, name, fieldName);
+            return "this." + fieldName;
         }
 
         // 处理布尔字段引用
@@ -429,10 +442,13 @@ public class Type2TextConverter implements TextConverter {
         // 处理直接字段赋值
         Matcher directMatcher = DIRECT_PATTERN.matcher(line);
         if (directMatcher.find()) {
-            String fieldName = directMatcher.group(1).trim();
-            logger.info("Found direct field assignment: {}", fieldName);
+            String prefix = directMatcher.group(1);  // 获取前缀（如 "D"）
+            String name = directMatcher.group(2);    // 获取名称（如 "AABB"）
+            String fieldName = prefix + name;        // 组合（如 "DAABB"）
+            logger.info("Found direct field assignment: prefix=[{}], name=[{}], result=[{}]", 
+                prefix, name, fieldName);
             currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                fieldName,  // 不再添加 "D" 前缀，因为字段名已经包含了
+                fieldName,
                 "ブランク",
                 GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
             ));
