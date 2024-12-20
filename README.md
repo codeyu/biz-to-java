@@ -1,7 +1,4 @@
-﻿好的，我会帮你生成完整的README.md文件。这个文件将包含项目说明、结构、配置和使用方法等内容。
-
-```markdown:README.md
-# Java Text to Code Converter
+﻿# Java Text to Code Converter
 
 这是一个将日语文本转换为Java代码的工具。它可以读取特定格式的日语文本，并生成对应的Java setter方法调用代码。
 
@@ -153,14 +150,3 @@ MIT License
 ## 问题反馈
 
 如有问题，请在GitHub Issues中提出。
-```
-
-这个README.md文件包含了：
-1. 项目介绍和功能说明
-2. 详细的项目结构
-3. 配置和使用方法
-4. 开发指南和命令说明
-5. 注意事项和依赖说明
-6. 输入输出格式示例
-
-需要我对某部分做进一步补充或修改吗？
