@@ -3,6 +3,7 @@ package com.example.strategy;
 import com.example.model.*;
 import com.example.util.JavaFileReader;
 import com.example.util.LogicOperatorPostProcessor;
+import com.example.util.VariableDefinitionReader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,18 @@ public class Type2TextConverter implements TextConverter {
         this.enableLogicConversion = enable;
         if (enable && logicProcessor == null) {
             logicProcessor = new LogicOperatorPostProcessor();
+        }
+    }
+
+    public void setDefineFile(String defineFile) {
+        try {
+            Map<String, VariableDefinition> definitions = 
+                VariableDefinitionReader.readDefinitions(defineFile);
+            if (logicProcessor != null) {
+                logicProcessor.setVariableDefinitions(definitions);
+            }
+        } catch (IOException e) {
+            logger.error("Failed to read define file: {}", defineFile, e);
         }
     }
 

@@ -1,0 +1,10 @@
+private String SSKK = "";
+private String MMNN = "";
+private Integer WBBCC = 0;
+private String AABB;
+private String UUHH = "";
+private Integer DCC23;
+private Integer CC23;
+private Integer DUUHH;
+
+

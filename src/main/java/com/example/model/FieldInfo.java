@@ -39,4 +39,27 @@ public class FieldInfo {
     public String getGetMethod() { return getMethod; }
     public String getFieldType() { return fieldType; }
     public void setFieldType(String fieldType) { this.fieldType = fieldType; }
+
+    public boolean isNumericType() {
+        return fieldType != null && (
+            fieldType.equals("Integer") || 
+            fieldType.equals("int") || 
+            fieldType.equals("Double") || 
+            fieldType.equals("double") ||
+            fieldType.equals("Float") || 
+            fieldType.equals("float")
+        );
+    }
+
+    public boolean isStringType() {
+        return fieldType != null && fieldType.equals("String");
+    }
+
+    public boolean isDateType() {
+        return fieldType != null && (
+            fieldType.equals("Date") || 
+            fieldType.equals("LocalDate") ||
+            fieldType.equals("LocalDateTime")
+        );
+    }
 } 
