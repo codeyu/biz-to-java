@@ -20,7 +20,8 @@ public class Type2TextConverter implements TextConverter {
     
     private static final Pattern CONDITION_START = Pattern.compile("》【条件】(.+)のとき");
     private static final Pattern CONDITION_CONTINUE = Pattern.compile("^\\s*(または|かつ)、(.+)のとき");
-    private static final Pattern ENTITY_PATTERN = Pattern.compile("項目「([^」]*)\\.(\\(([^)]+)\\))」");
+    private static final Pattern ENTITY_PATTERN = 
+        Pattern.compile("項目「([^.]+)\\.(\\(([^)]+)\\))」");
     private static final Pattern DIRECT_PATTERN = Pattern.compile("項目「\\s*([A-Z])\\\\([^」]+)\\s*」");
     private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)」");
     private static final Pattern COMPARISON_PATTERN = Pattern.compile("(.+)(＝|≠)(.+)");
@@ -83,86 +84,69 @@ public class Type2TextConverter implements TextConverter {
     }
 
     public List<String> convertFile(List<String> lines) {
-        // 1. 初始化带序号的行列表，同时处理双引号
+        // 1. 初始化带序号的行列表
         List<TextLine> textLines = new ArrayList<>();
         for (int i = 0; i < lines.size(); i++) {
             String cleanedLine = removeQuotes(lines.get(i));
             textLines.add(new TextLine(i, cleanedLine));
         }
 
-        // 2. 存储生成的代码，使用TreeMap保证顺序
-        TreeMap<Integer, String> generatedCode = new TreeMap<>();
+        // 2. 存储生成的代码
+        List<String> generatedCode = new ArrayList<>();
         
-        // 3. 首先处理独立��赋值语句（以"項目"开头的行）
-        for (TextLine line : textLines) {
-            String trimmed = line.content.trim();
-            if (trimmed.startsWith("項目「") && !line.content.startsWith(" ") && !line.content.startsWith("　")) {
-                String code = processStandaloneAssignment(normalizeSpaces(trimmed));
-                if (code != null) {
-                    generatedCode.put(line.lineNumber, code);
-                    line.processed = true;
-                }
-            }
-        }
-
-        // 4. 处理条件块
+        // 3. 处理条件块
         GeneratedType2JavaInfo currentInfo = null;
-        int conditionStartLine = -1;
 
-        for (TextLine line : textLines) {
-            if (line.processed) continue;  // 跳过已处理的行
-            
+        for (int i = 0; i < textLines.size(); i++) {
+            TextLine line = textLines.get(i);
             String normalizedLine = normalizeSpaces(line.content);
             String trimmed = normalizedLine.trim();
 
+            // 新的条件块开始
             if (trimmed.startsWith("》【条件】")) {
+                // 处理前一个条件块
                 if (currentInfo != null) {
-                    generatedCode.put(conditionStartLine, currentInfo.generateCode());
-                }
-                currentInfo = new GeneratedType2JavaInfo();
-                conditionStartLine = line.lineNumber;
-                processConditionLine(trimmed, currentInfo);
-                line.processed = true;
-            }
-            else if (line.content.startsWith(" ") || line.content.startsWith("　")) {
-                if (!line.processed && currentInfo != null) {
-                    if (trimmed.startsWith("または、") || trimmed.startsWith("かつ、")) {
-                        processContinuationLine(trimmed, currentInfo);
-                    } else if (trimmed.startsWith("項目「")) {
-                        processAssignmentLine(trimmed, currentInfo);
+                    String code = currentInfo.generateCode();
+                    if (code != null && !code.trim().isEmpty()) {
+                        generatedCode.add(code);
                     }
-                    line.processed = true;
+                }
+                // 创建新的条件块
+                currentInfo = new GeneratedType2JavaInfo();
+                processConditionLine(trimmed, currentInfo);
+            }
+            // 条件块的继续条件（または、或かつ、）
+            else if (trimmed.startsWith("または、") || trimmed.startsWith("かつ、")) {
+                if (currentInfo != null) {
+                    processContinuationLine(trimmed, currentInfo);
+                }
+            }
+            // 条件块内的语句
+            else if (!trimmed.isEmpty()) {
+                if (currentInfo != null) {
+                    processAssignmentLine(trimmed, currentInfo);
+                } else {
+                    // 如果不在条件块内，创建一个新的条件块
+                    currentInfo = new GeneratedType2JavaInfo();
+                    processAssignmentLine(trimmed, currentInfo);
                 }
             }
         }
 
-        // 理最后一个条件块
+        // 处理最后一个条件块
         if (currentInfo != null) {
-            generatedCode.put(conditionStartLine, currentInfo.generateCode());
+            String code = currentInfo.generateCode();
+            if (code != null && !code.trim().isEmpty()) {
+                generatedCode.add(code);
+            }
         }
 
-        // 5. 按顺序返回生成的代码
-        List<String> generatedCodeList = new ArrayList<>(generatedCode.values());
-        
-        // 如果启用了逻辑转换，进行后处理
+        // 4. 如果启用了逻辑转换，进行后处理
         if (enableLogicConversion && logicProcessor != null) {
-            logger.info("Logic conversion is enabled, processing {} lines", generatedCodeList.size());
-            List<String> processedCode = new ArrayList<>();
-            for (String code : generatedCodeList) {
-                try {
-                    String processed = logicProcessor.process(code);
-                    logger.info("Original code: [{}]", code);
-                    logger.info("Processed code: [{}]", processed);
-                    processedCode.add(processed);
-                } catch (Exception e) {
-                    logger.error("Error processing code: {}", code, e);
-                    processedCode.add(code);  // 出错时保留原代码
-                }
-            }
-            return processedCode;
+            return processLogicConversion(generatedCode);
         }
         
-        return generatedCodeList;
+        return generatedCode;
     }
 
     private String processStandaloneAssignment(String line) {
@@ -271,7 +255,7 @@ public class Type2TextConverter implements TextConverter {
     }
 
     private String getInstanceName(String entityId) {
-        // 从配置中获取实例名，如果没有配置则使用默认的命名规则
+        // 从配置中取实例名，如果没有配置则使用默认的命名规则
         if (entityInstances != null && entityInstances.containsKey(entityId)) {
             String instanceName = entityInstances.get(entityId);
             logger.info("Found configured instance name '{}' for entity ID '{}'", instanceName, entityId);
@@ -403,68 +387,147 @@ public class Type2TextConverter implements TextConverter {
     private void processAssignmentLine(String line, GeneratedType2JavaInfo currentInfo) {
         logger.info("Processing assignment line: {}", line);
         
-        // 处理实体字段赋值
-        Matcher entityMatcher = ENTITY_PATTERN.matcher(line);
-        if (entityMatcher.find()) {
-            String entityId = entityMatcher.group(1);
-            String fieldComment = entityMatcher.group(3);
-            logger.info("Found entity assignment - id: {}, comment: {}", entityId, fieldComment);
-            
-            // 查找目标值
-            String targetValue = null;
-            String targetField = getEntityFieldReference(entityId, fieldComment);
-            
-            // 查找第二个实体引用（如果存在）
-            Matcher valueMatcher = ENTITY_PATTERN.matcher(line.substring(entityMatcher.end()));
-            if (valueMatcher.find()) {
-                String valueEntityId = valueMatcher.group(1);
-                String valueFieldComment = valueMatcher.group(3);
-                targetValue = getEntityFieldReference(valueEntityId, valueFieldComment);
-                logger.info("Found entity value reference - id: {}, comment: {}", valueEntityId, valueFieldComment);
-            } else if (line.contains("ブランク")) {
-                targetValue = "\"\"";
-                logger.info("Found blank value assignment");
-            }
+        // 1. 处理实体字段到实体字段的赋值
+        // 例如：項目「ABC(Ｌ０２).(常務コード)」に 項目「ABC(Ｌ０３).(常務コード) 」を右詰で代入します
+        if (line.contains("」に") && line.contains("」を") && line.contains("代入します")) {
+            processEntityToEntityAssignment(line, currentInfo);
+            return;
+        }
 
-            if (targetValue != null && targetField != null) {
-                // 对于实体字段，使用setter方法
-                String setterField = targetField.replace("get", "set").replace("()", "");
+        // 2. 处理直接字段赋值（带ブランク）
+        // 例如：項目「 D\AABB 」にブランクを代入します
+        if (line.contains("ブランク") || line.contains("ﾌﾞﾗﾝｸ")) {
+            Matcher directMatcher = DIRECT_PATTERN.matcher(line);
+            if (directMatcher.find()) {
+                String prefix = directMatcher.group(1);
+                String name = directMatcher.group(2);
+                String fieldName = prefix + name.replace("\\", "").trim();
                 currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                    setterField,
-                    targetValue,
+                    fieldName,
+                    "\"\"",
+                    GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
+                ));
+                return;
+            }
+        }
+
+        // 3. 处理布尔字段赋值
+        // 例如：項目「 *IN20 」に '1' を右詰で代入します
+        if (line.contains("*") && line.contains("'1'")) {
+            Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
+            if (booleanMatcher.find()) {
+                String fieldName = booleanMatcher.group(1).trim();
+                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                    fieldName,
+                    "'1'",
+                    GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
+                ));
+                return;
+            }
+        }
+
+        // 4. 处理数值赋值
+        // 例如：項目「ABC(Ｌ０３).(発行日１２３)」＝ 0
+        if (line.contains("＝")) {
+            Matcher equalsAssignMatcher = SIMPLE_EQUALS_PATTERN.matcher(line);
+            if (equalsAssignMatcher.find()) {
+                String entityId = equalsAssignMatcher.group(1);
+                String fieldComment = equalsAssignMatcher.group(3);
+                String value = equalsAssignMatcher.group(4);
+                
+                // 创建一个新的方法来处理数值赋值
+                processNumberAssignment(currentInfo, entityId, fieldComment, value);
+                return;
+            }
+        }
+
+        logger.warn("Unrecognized assignment line: {}", line);
+    }
+
+    // 添加新方法处理数值赋值
+    private void processNumberAssignment(GeneratedType2JavaInfo currentInfo,
+            String entityId, String fieldComment, String value) {
+        String instanceName = getInstanceName(entityId);
+        ClassInfo entityInfo = getEntityInfo(entityId);
+        
+        if (entityInfo != null) {
+            FieldInfo field = entityInfo.findFieldByComment(fieldComment);
+            if (field != null) {
+                String setterMethod = field.getSetMethod();
+                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                    instanceName + "." + setterMethod,
+                    value,
                     GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
                 ));
-                logger.info("Added entity field assignment: {} = {}", setterField, targetValue);
+                logger.info("Added number assignment: {}.{}({})",
+                    instanceName, setterMethod, value);
+            } else {
+                logger.error("Could not find field info for comment: {}", fieldComment);
             }
-            return;
+        } else {
+            logger.error("Could not find entity info for: {}", entityId);
         }
+    }
 
-        // 处理直接字段赋值
-        Matcher directMatcher = DIRECT_PATTERN.matcher(line);
-        if (directMatcher.find()) {
-            String prefix = directMatcher.group(1);  // 获取前缀（如 "D"）
-            String name = directMatcher.group(2);    // 获取名称（如 "AABB"）
-            String fieldName = prefix + name;        // 组合（如 "DAABB"）
-            logger.info("Found direct field assignment: prefix=[{}], name=[{}], result=[{}]", 
-                prefix, name, fieldName);
-            currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                fieldName,
-                "ブランク",
-                GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
-            ));
-            return;
+    private void processEntityToEntityAssignment(String line, GeneratedType2JavaInfo currentInfo) {
+        // 提取源实体和目标实体
+        Matcher sourceMatcher = ENTITY_PATTERN.matcher(line);
+        if (sourceMatcher.find()) {
+            String targetEntityId = sourceMatcher.group(1);
+            String targetFieldComment = sourceMatcher.group(3);
+            
+            // 查找第二个实体引用
+            String remaining = line.substring(sourceMatcher.end());
+            Matcher targetMatcher = ENTITY_PATTERN.matcher(remaining);
+            if (targetMatcher.find()) {
+                String sourceEntityId = targetMatcher.group(1);
+                String sourceFieldComment = targetMatcher.group(3);
+                
+                logger.info("Processing entity assignment: {} -> {}", 
+                    targetEntityId + "." + targetFieldComment,
+                    sourceEntityId + "." + sourceFieldComment);
+                
+                processEntityAssignment(currentInfo, 
+                    targetEntityId, targetFieldComment,
+                    sourceEntityId, sourceFieldComment);
+            }
         }
+    }
 
-        // 处理布尔字段赋值
-        Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
-        if (booleanMatcher.find()) {
-            String fieldName = booleanMatcher.group(1);
-            logger.info("Found boolean field assignment: {}", fieldName);
-            currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                fieldName,  // 不需要添加 *
-                "'1'",  // 使用 '1' 表示 true
-                GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
-            ));
+    private void processEntityAssignment(GeneratedType2JavaInfo currentInfo,
+            String targetEntityId, String targetFieldComment,
+            String sourceEntityId, String sourceFieldComment) {
+        
+        String targetInstanceName = getInstanceName(targetEntityId);
+        String sourceInstanceName = getInstanceName(sourceEntityId);
+        
+        ClassInfo targetEntityInfo = getEntityInfo(targetEntityId);
+        ClassInfo sourceEntityInfo = getEntityInfo(sourceEntityId);
+        
+        if (targetEntityInfo != null && sourceEntityInfo != null) {
+            FieldInfo targetField = targetEntityInfo.findFieldByComment(targetFieldComment);
+            FieldInfo sourceField = sourceEntityInfo.findFieldByComment(sourceFieldComment);
+            
+            if (targetField != null && sourceField != null) {
+                String sourceValue = sourceInstanceName + "." + sourceField.getGetMethod() + "()";
+                String setterMethod = targetField.getSetMethod();
+                
+                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                    targetInstanceName + "." + setterMethod,
+                    sourceValue,
+                    GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
+                ));
+                
+                logger.info("Added entity field assignment: {}.{}({}.{}())",
+                    targetInstanceName, setterMethod,
+                    sourceInstanceName, sourceField.getGetMethod());
+            } else {
+                logger.error("Could not find field info - target: {}, source: {}", 
+                    targetFieldComment, sourceFieldComment);
+            }
+        } else {
+            logger.error("Could not find entity info - target: {}, source: {}", 
+                targetEntityId, sourceEntityId);
         }
     }
 
@@ -495,5 +558,22 @@ public class Type2TextConverter implements TextConverter {
         }
         
         return line;
+    }
+
+    private List<String> processLogicConversion(List<String> generatedCodeList) {
+        logger.info("Logic conversion is enabled, processing {} lines", generatedCodeList.size());
+        List<String> processedCode = new ArrayList<>();
+        for (String code : generatedCodeList) {
+            try {
+                String processed = logicProcessor.process(code);
+                logger.info("Original code: [{}]", code);
+                logger.info("Processed code: [{}]", processed);
+                processedCode.add(processed);
+            } catch (Exception e) {
+                logger.error("Error processing code: {}", code, e);
+                processedCode.add(code);  // 出错时保留原代码
+            }
+        }
+        return processedCode;
     }
 } 
