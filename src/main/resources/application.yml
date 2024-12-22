@@ -10,12 +10,12 @@ type2:
   defineFile: input/define.txt
   entityFile: 
     - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
-    - ABC(Ｌ０２)=input/TestTable2BaseEntity.java
-    - ABC(Ｌ０３)=input/TestTable3BaseEntity.java
+    - Ｌ０２(L00)KKK=input/TestTable2BaseEntity.java
+    - Ｌ０３(L11)TTT=input/TestTable3BaseEntity.java
   entityInstance:
     - 手袋(Ｌ０１)=testTable1
-    - ABC(Ｌ０２)=test222
-    - ABC(Ｌ０３)=testTable333
+    - Ｌ０２(L00)KKK=test222
+    - Ｌ０３(L11)TTT=testTable333
   outputFile: output/GeneratedCode2.java
   logicOperatorMapping:
     "=\"\"": "StrUtil.isEmpty"

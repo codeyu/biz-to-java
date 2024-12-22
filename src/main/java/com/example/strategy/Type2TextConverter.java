@@ -21,14 +21,14 @@ public class Type2TextConverter implements TextConverter {
     private static final Pattern CONDITION_START = Pattern.compile("》【条件】(.+)のとき");
     private static final Pattern CONDITION_CONTINUE = Pattern.compile("^\\s*(または|かつ)、(.+)のとき");
     private static final Pattern ENTITY_PATTERN = 
-        Pattern.compile("項目「([^.]+)\\.(\\(([^)]+)\\))」");
+        Pattern.compile("項目「[^(]*?\\(((?:[^()]+|\\([^()]*\\))+)\\)[^.]*\\.(\\(([^)]+)\\))」");
     private static final Pattern DIRECT_PATTERN = Pattern.compile("項目「\\s*([A-Z])\\\\([^」]+)\\s*」");
-    private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)」");
+    private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)���������");
     private static final Pattern COMPARISON_PATTERN = Pattern.compile("(.+)(＝|≠)(.+)");
     private static final Pattern SIMPLE_ASSIGNMENT_PATTERN = 
         Pattern.compile("^項目「\\s*([^」]+?)\\s*」に\\s*(ブランク|'[01]')\\s*を代入します");
     private static final Pattern SIMPLE_EQUALS_PATTERN =
-        Pattern.compile("^項目「([^」]*)\\.(\\(([^)]+)\\))」＝\\s*([０0-9]+)");
+        Pattern.compile("^項目「[^(]*?\\(((?:[^()]+|\\([^()]*\\))+)\\)[^.]*\\.(\\(([^)]+)\\))」＝\\s*([０0-9]+)");
 
     private Map<String, ClassInfo> entityInfoMap;
     private Map<String, String> entityFiles;
@@ -218,7 +218,8 @@ public class Type2TextConverter implements TextConverter {
             String op = comparisonMatcher.group(2);
             String rightSide = comparisonMatcher.group(3).trim();
             
-            logger.info("Extracted comparison - left: {}, operator: {}, right: {}", leftSide, op, rightSide);
+            logger.info("Extracted comparison - left: {}, operator: {}, right: {}", 
+                leftSide, op, rightSide);
             
             String leftValue = extractValue(leftSide);
             String rightValue = extractValue(rightSide);
@@ -226,46 +227,59 @@ public class Type2TextConverter implements TextConverter {
             logger.info("Converted values - left: {}, right: {}", leftValue, rightValue);
             
             if (leftValue != null && rightValue != null) {
+                // 添加更多日志来调试
+                logger.info("Adding condition part - left: [{}], op: [{}], right: [{}]", 
+                    leftValue, op, rightValue);
+                    
                 conditionInfo.addPart(new GeneratedType2JavaInfo.ConditionPart(
                     leftValue,
                     op,
                     rightValue
                 ));
-                logger.info("Added condition part to condition info");
+                logger.info("Added condition part successfully");
             } else {
-                logger.warn("Failed to extract values from condition: {}", condition);
+                logger.error("Failed to extract values - left: [{}], right: [{}]", 
+                    leftValue, rightValue);
             }
         } else {
-            logger.warn("Failed to match comparison pattern in condition: {}", condition);
+            logger.error("Failed to match comparison pattern in condition: [{}]", condition);
         }
     }
 
     private String getEntityFieldReference(String entityId, String fieldComment) {
+        // 记录日志，帮助调试
+        logger.info("Getting entity field reference - entityId: [{}], fieldComment: [{}]", 
+            entityId, fieldComment);
+
         ClassInfo entityInfo = getEntityInfo(entityId);
         if (entityInfo != null) {
             FieldInfo fieldInfo = entityInfo.findFieldByComment(fieldComment);
             if (fieldInfo != null) {
                 String instanceName = getInstanceName(entityId);
-                logger.info("Using instance name '{}' for entity ID '{}'", instanceName, entityId);
-                return instanceName + "." + fieldInfo.getGetMethod() + "()";
+                String reference = instanceName + "." + fieldInfo.getGetMethod() + "()";
+                logger.info("Generated reference: [{}]", reference);
+                return reference;
+            } else {
+                logger.error("Field not found - entityId: [{}], fieldComment: [{}]", 
+                    entityId, fieldComment);
             }
+        } else {
+            logger.error("Entity info not found for ID: [{}]", entityId);
         }
-        logger.warn("Could not find field for entity {} with comment {}", entityId, fieldComment);
         return null;
     }
 
     private String getInstanceName(String entityId) {
-        // 从配置中取实例名，如果没有配置则使用默认的命名规则
+        // 从配置中获取实例名
         if (entityInstances != null && entityInstances.containsKey(entityId)) {
             String instanceName = entityInstances.get(entityId);
             logger.info("Found configured instance name '{}' for entity ID '{}'", instanceName, entityId);
             return instanceName;
         }
-        // 默认命名规则（首字母小写）
-        String className = entityInfoMap.get(entityId).getClassName();
-        String defaultName = Character.toLowerCase(className.charAt(0)) + className.substring(1);
-        logger.info("Using default instance name '{}' for entity ID '{}'", defaultName, entityId);
-        return defaultName;
+
+        // 如果没有找到配置的实例名，记录错误并返回一个默认值
+        logger.error("No instance name configured for entity ID: {}", entityId);
+        return "defaultInstance"; // 或者抛出异常，取决于你的需求
     }
 
     private ClassInfo getEntityInfo(String entityId) {
@@ -287,10 +301,10 @@ public class Type2TextConverter implements TextConverter {
         logger.info("Extracting value from: {}", text);
         text = text.trim();
         
-        // 处理实体字段引用
+        // 处理体字段引用
         Matcher entityMatcher = ENTITY_PATTERN.matcher(text);
         if (entityMatcher.find()) {
-            String entityId = entityMatcher.group(1);
+            String entityId = entityMatcher.group(1);  // 获取第一个括号内的实体ID
             String fieldComment = entityMatcher.group(3);
             logger.info("Found entity reference - id: {}, comment: {}", entityId, fieldComment);
             
@@ -321,7 +335,7 @@ public class Type2TextConverter implements TextConverter {
         }
 
         // 处理 ブランク
-        if (text.equals("ブランク")) {
+        if (text.equals("ブランク") || text.equals("ﾌﾞﾗﾝｸ")) {
             return "\"\"";
         }
 
@@ -335,7 +349,7 @@ public class Type2TextConverter implements TextConverter {
         // 记录原始行用于日志
         String originalLine = line;
         
-        // 1. 将全角空格转换为半角空格
+        // 1. 将全角格转换为半角空格
         line = line.replace('　', ' ');
         
         // 2. 去除括号内的空格
@@ -371,7 +385,7 @@ public class Type2TextConverter implements TextConverter {
         }
         line = result.toString();
         
-        // 3. 将多个连续空格转换为单个空格
+        // 3. 将多���连续空格转换为单个空格
         line = line.replaceAll("\\s+", " ");
         
         // 4. 去除前后空格
@@ -387,7 +401,7 @@ public class Type2TextConverter implements TextConverter {
     private void processAssignmentLine(String line, GeneratedType2JavaInfo currentInfo) {
         logger.info("Processing assignment line: {}", line);
         
-        // 1. 处理实体字段到实体字段的赋值
+        // 1. 处理实体字段到实体段的值
         // 例如：項目「ABC(Ｌ０２).(常務コード)」に 項目「ABC(Ｌ０３).(常務コード) 」を右詰で代入します
         if (line.contains("」に") && line.contains("」を") && line.contains("代入します")) {
             processEntityToEntityAssignment(line, currentInfo);
@@ -427,7 +441,6 @@ public class Type2TextConverter implements TextConverter {
         }
 
         // 4. 处理数值赋值
-        // 例如：項目「ABC(Ｌ０３).(発行日１２３)」＝ 0
         if (line.contains("＝")) {
             Matcher equalsAssignMatcher = SIMPLE_EQUALS_PATTERN.matcher(line);
             if (equalsAssignMatcher.find()) {
@@ -435,7 +448,6 @@ public class Type2TextConverter implements TextConverter {
                 String fieldComment = equalsAssignMatcher.group(3);
                 String value = equalsAssignMatcher.group(4);
                 
-                // 创建一个新的方法来处理数值赋值
                 processNumberAssignment(currentInfo, entityId, fieldComment, value);
                 return;
             }
@@ -473,14 +485,14 @@ public class Type2TextConverter implements TextConverter {
         // 提取源实体和目标实体
         Matcher sourceMatcher = ENTITY_PATTERN.matcher(line);
         if (sourceMatcher.find()) {
-            String targetEntityId = sourceMatcher.group(1);
+            String targetEntityId = sourceMatcher.group(1);  // 获取第一个括号内的实体ID
             String targetFieldComment = sourceMatcher.group(3);
             
             // 查找第二个实体引用
             String remaining = line.substring(sourceMatcher.end());
             Matcher targetMatcher = ENTITY_PATTERN.matcher(remaining);
             if (targetMatcher.find()) {
-                String sourceEntityId = targetMatcher.group(1);
+                String sourceEntityId = targetMatcher.group(1);  // 获取第一个括号内的实体ID
                 String sourceFieldComment = targetMatcher.group(3);
                 
                 logger.info("Processing entity assignment: {} -> {}", 

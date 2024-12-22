@@ -5,7 +5,6 @@
 if(!StrUtil.eq(test222.getTestField9(), testTable333.getTestField9())) {
     test222.setTestField9(testTable333.getTestField9());
     this.DSSKK = "";
-    this.IN20 = true;
     testTable333.setTestField7(0);
 }
 

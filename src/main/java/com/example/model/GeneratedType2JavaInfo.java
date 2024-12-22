@@ -74,7 +74,7 @@ public class GeneratedType2JavaInfo {
                 return "this." + value.substring(2);
             } else if (value.startsWith("*IN")) {
                 return "this." + value.substring(1);
-            } else if (value.equals("ブランク")) {
+            } else if (value.equals("ブランク") || value.equals("ﾌﾞﾗﾝｸ")) {
                 return "\"\"";
             } else {
                 return value;
@@ -113,7 +113,7 @@ public class GeneratedType2JavaInfo {
         }
 
         private String convertValue(String value) {
-            if (value.equals("ブランク")) {
+            if (value.equals("ブランク") || value.equals("ﾌﾞﾗﾝｸ")) {
                 return "\"\"";
             } else if (value.equals("'1'")) {
                 return "true";
