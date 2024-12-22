@@ -23,7 +23,7 @@ public class Type2TextConverter implements TextConverter {
     private static final Pattern ENTITY_PATTERN = 
         Pattern.compile("項目「[^(]*?\\(((?:[^()]+|\\([^()]*\\))+)\\)[^.]*\\.(\\(([^)]+)\\))」");
     private static final Pattern DIRECT_PATTERN = Pattern.compile("項目「\\s*([A-Z])\\\\([^」]+)\\s*」");
-    private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)���������");
+    private static final Pattern BOOLEAN_PATTERN = Pattern.compile("項目「\\*([^」]+)」");
     private static final Pattern COMPARISON_PATTERN = Pattern.compile("(.+)(＝|≠)(.+)");
     private static final Pattern SIMPLE_ASSIGNMENT_PATTERN = 
         Pattern.compile("^項目「\\s*([^」]+?)\\s*」に\\s*(ブランク|'[01]')\\s*を代入します");
@@ -385,7 +385,7 @@ public class Type2TextConverter implements TextConverter {
         }
         line = result.toString();
         
-        // 3. 将多���连续空格转换为单个空格
+        // 3. 将多连续空格转换为单个空格
         line = line.replaceAll("\\s+", " ");
         
         // 4. 去除前后空格
@@ -427,7 +427,7 @@ public class Type2TextConverter implements TextConverter {
 
         // 3. 处理布尔字段赋值
         // 例如：項目「 *IN20 」に '1' を右詰で代入します
-        if (line.contains("*") && line.contains("'1'")) {
+        if (line.contains("*IN") && line.contains("'1'")) {
             Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
             if (booleanMatcher.find()) {
                 String fieldName = booleanMatcher.group(1).trim();
