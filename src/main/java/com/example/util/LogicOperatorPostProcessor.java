@@ -30,7 +30,7 @@ public class LogicOperatorPostProcessor {
         Matcher ifMatcher = IF_PATTERN.matcher(code);
         if (!ifMatcher.find()) {
             logger.debug("No if condition found, returning original code");
-            return code;
+            return "//TODO:手動で処理をお願いします\n" + code;
         }
 
         String condition = ifMatcher.group(1);
