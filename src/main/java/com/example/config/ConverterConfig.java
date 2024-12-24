@@ -11,10 +11,12 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.File;
+import java.io.FileNotFoundException;
 
 public class ConverterConfig {
     private static final Logger logger = LoggerFactory.getLogger(ConverterConfig.class);
-    private static final String CONFIG_FILE = "src/main/resources/application.yml";
+    private static final String CONFIG_FILE = "application.yml";
     
     private String converterType;      // 转换器类型 "converterType1" 或 "converterType2"
     private String inputFile;          // 输入文件路径
@@ -35,7 +37,23 @@ public class ConverterConfig {
 
     @SuppressWarnings("unchecked")
     private void loadConfig() {
-        try (InputStream input = new FileInputStream(CONFIG_FILE)) {
+        // 首先尝试从当前目录加载
+        File localConfig = new File(CONFIG_FILE);
+        InputStream input = null;
+        
+        try {
+            if (localConfig.exists()) {
+                logger.info("Loading config from local file: {}", localConfig.getAbsolutePath());
+                input = new FileInputStream(localConfig);
+            } else {
+                // 如果本地文件不存在，从classpath加载
+                logger.info("Loading config from classpath: {}", CONFIG_FILE);
+                input = getClass().getClassLoader().getResourceAsStream(CONFIG_FILE);
+                if (input == null) {
+                    throw new FileNotFoundException("Config file not found in classpath: " + CONFIG_FILE);
+                }
+            }
+            
             Yaml yaml = new Yaml();
             Map<String, Object> config = yaml.load(input);
             
@@ -77,6 +95,14 @@ public class ConverterConfig {
             logger.info("Configuration loaded successfully for {}", converterType);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config file", e);
+        } finally {
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    logger.error("Error closing config file", e);
+                }
+            }
         }
     }
 
