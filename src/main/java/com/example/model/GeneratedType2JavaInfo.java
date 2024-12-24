@@ -2,8 +2,11 @@ package com.example.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GeneratedType2JavaInfo {
+    private static final Logger logger = LoggerFactory.getLogger(GeneratedType2JavaInfo.class);
     private Condition condition;
     private List<Assignment> assignments;
 
@@ -18,6 +21,15 @@ public class GeneratedType2JavaInfo {
 
     public void addAssignment(Assignment assignment) {
         this.assignments.add(assignment);
+    }
+
+    public void handleFailure(String originalText, String reason) {
+        logger.warn("Failed to process text: {} (Reason: {})", originalText, reason);
+        assignments.add(new Assignment(
+            originalText,
+            null,
+            Assignment.AssignmentType.TODO
+        ));
     }
 
     public static class Condition {
@@ -96,7 +108,8 @@ public class GeneratedType2JavaInfo {
         public enum AssignmentType {
             ENTITY_FIELD,
             DIRECT_FIELD,
-            BOOLEAN_FIELD
+            BOOLEAN_FIELD,
+            TODO
         }
 
         public String generateCode() {
@@ -107,6 +120,8 @@ public class GeneratedType2JavaInfo {
                     return String.format("this.%s = %s;", target, convertValue(value));
                 case BOOLEAN_FIELD:
                     return String.format("this.%s = true;", target);
+                case TODO:
+                    return String.format("//TODO: %s", target);
                 default:
                     return null;
             }

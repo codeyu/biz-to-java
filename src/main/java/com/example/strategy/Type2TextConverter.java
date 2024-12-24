@@ -182,13 +182,18 @@ public class Type2TextConverter implements TextConverter {
 
     private void processConditionLine(String line, GeneratedType2JavaInfo info) {
         logger.info("Processing condition line: {}", line);
-        Matcher matcher = CONDITION_START.matcher(line);
-        if (matcher.find()) {
-            String condition = matcher.group(1);
-            logger.info("Extracted condition: {}", condition);
-            processCondition(condition, info.getCondition(), null);
-        } else {
-            logger.warn("Failed to match condition pattern in line: {}", line);
+        try {
+            Matcher matcher = CONDITION_START.matcher(line);
+            if (matcher.find()) {
+                String condition = matcher.group(1);
+                logger.info("Extracted condition: {}", condition);
+                processCondition(condition, info.getCondition(), null);
+            } else {
+                info.handleFailure(line, "Failed to match condition pattern");
+            }
+        } catch (Exception e) {
+            logger.error("Error processing condition line: {}", line, e);
+            info.handleFailure(line, "Exception: " + e.getMessage());
         }
     }
 
@@ -205,7 +210,7 @@ public class Type2TextConverter implements TextConverter {
         }
     }
 
-    private void processCondition(String condition, GeneratedType2JavaInfo.Condition conditionInfo, String operator) {
+    private boolean processCondition(String condition, GeneratedType2JavaInfo.Condition conditionInfo, String operator) {
         logger.info("Processing condition: {}, operator: {}", condition, operator);
         if (operator != null) {
             logger.info("Setting logical operator: {}", operator);
@@ -227,22 +232,20 @@ public class Type2TextConverter implements TextConverter {
             logger.info("Converted values - left: {}, right: {}", leftValue, rightValue);
             
             if (leftValue != null && rightValue != null) {
-                // 添加更多日志来调试
-                logger.info("Adding condition part - left: [{}], op: [{}], right: [{}]", 
-                    leftValue, op, rightValue);
-                    
                 conditionInfo.addPart(new GeneratedType2JavaInfo.ConditionPart(
                     leftValue,
                     op,
                     rightValue
                 ));
-                logger.info("Added condition part successfully");
+                return true;
             } else {
                 logger.error("Failed to extract values - left: [{}], right: [{}]", 
                     leftValue, rightValue);
+                return false;
             }
         } else {
             logger.error("Failed to match comparison pattern in condition: [{}]", condition);
+            return false;
         }
     }
 
@@ -304,7 +307,7 @@ public class Type2TextConverter implements TextConverter {
         // 处理体字段引用
         Matcher entityMatcher = ENTITY_PATTERN.matcher(text);
         if (entityMatcher.find()) {
-            String entityId = entityMatcher.group(1);  // 获取第一个括号内的实体ID
+            String entityId = entityMatcher.group(1);  // 获取第一个号内的实体ID
             String fieldComment = entityMatcher.group(3);
             logger.info("Found entity reference - id: {}, comment: {}", entityId, fieldComment);
             
@@ -401,145 +404,176 @@ public class Type2TextConverter implements TextConverter {
     private void processAssignmentLine(String line, GeneratedType2JavaInfo currentInfo) {
         logger.info("Processing assignment line: {}", line);
         
-        // 1. 处理实体字段到实体段的值
-        // 例如：項目「ABC(Ｌ０２).(常務コード)」に 項目「ABC(Ｌ０３).(常務コード) 」を右詰で代入します
+        try {
+            // 尝试各种处理方式
+            if (tryProcessEntityAssignment(line, currentInfo) ||
+                tryProcessDirectAssignment(line, currentInfo) ||
+                tryProcessBooleanAssignment(line, currentInfo) ||
+                tryProcessNumberAssignment(line, currentInfo)) {
+                return;
+            }
+            
+            // 如果所有处理方式都失败了
+            currentInfo.handleFailure(line, "No matching pattern found");
+            
+        } catch (Exception e) {
+            logger.error("Error processing line: {}", line, e);
+            currentInfo.handleFailure(line, "Exception: " + e.getMessage());
+        }
+    }
+
+    private boolean tryProcessEntityAssignment(String line, GeneratedType2JavaInfo currentInfo) {
         if (line.contains("」に") && line.contains("」を") && line.contains("代入します")) {
-            processEntityToEntityAssignment(line, currentInfo);
-            return;
+            try {
+                return processEntityToEntityAssignment(line, currentInfo);
+            } catch (Exception e) {
+                logger.error("Failed to process entity assignment", e);
+                currentInfo.handleFailure(line, "Exception: " + e.getMessage());
+            }
         }
+        return false;
+    }
 
-        // 2. 处理直接字段赋值（带ブランク）
-        // 例如：項目「 D\AABB 」にブランクを代入します
+    private boolean tryProcessDirectAssignment(String line, GeneratedType2JavaInfo currentInfo) {
         if (line.contains("ブランク") || line.contains("ﾌﾞﾗﾝｸ")) {
-            Matcher directMatcher = DIRECT_PATTERN.matcher(line);
-            if (directMatcher.find()) {
-                String prefix = directMatcher.group(1);
-                String name = directMatcher.group(2);
-                String fieldName = prefix + name.replace("\\", "").trim();
-                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                    fieldName,
-                    "\"\"",
-                    GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
-                ));
-                return;
+            try {
+                Matcher directMatcher = DIRECT_PATTERN.matcher(line);
+                if (directMatcher.find()) {
+                    String prefix = directMatcher.group(1);
+                    String name = directMatcher.group(2);
+                    String fieldName = prefix + name.replace("\\", "").trim();
+                    currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                        fieldName,
+                        "\"\"",
+                        GeneratedType2JavaInfo.Assignment.AssignmentType.DIRECT_FIELD
+                    ));
+                    return true;
+                }
+                currentInfo.handleFailure(line, "Failed to match direct field pattern");
+            } catch (Exception e) {
+                logger.error("Failed to process direct assignment", e);
+                currentInfo.handleFailure(line, "Exception: " + e.getMessage());
             }
         }
+        return false;
+    }
 
-        // 3. 处理布尔字段赋值
-        // 例如：項目「 *IN20 」に '1' を右詰で代入します
-        if (line.contains("*IN") && line.contains("'1'")) {
-            Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
-            if (booleanMatcher.find()) {
-                String fieldName = booleanMatcher.group(1).trim();
-                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                    fieldName,
-                    "'1'",
-                    GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
-                ));
-                return;
+    private boolean tryProcessBooleanAssignment(String line, GeneratedType2JavaInfo currentInfo) {
+        if (line.contains("*") && line.contains("'1'")) {
+            try {
+                Matcher booleanMatcher = BOOLEAN_PATTERN.matcher(line);
+                if (booleanMatcher.find()) {
+                    String fieldName = booleanMatcher.group(1).trim();
+                    currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                        fieldName,
+                        "'1'",
+                        GeneratedType2JavaInfo.Assignment.AssignmentType.BOOLEAN_FIELD
+                    ));
+                    return true;
+                }
+                currentInfo.handleFailure(line, "Failed to match boolean field pattern");
+            } catch (Exception e) {
+                logger.error("Failed to process boolean assignment", e);
+                currentInfo.handleFailure(line, "Exception: " + e.getMessage());
             }
         }
+        return false;
+    }
 
-        // 4. 处理数值赋值
+    private boolean tryProcessNumberAssignment(String line, GeneratedType2JavaInfo currentInfo) {
         if (line.contains("＝")) {
-            Matcher equalsAssignMatcher = SIMPLE_EQUALS_PATTERN.matcher(line);
-            if (equalsAssignMatcher.find()) {
-                String entityId = equalsAssignMatcher.group(1);
-                String fieldComment = equalsAssignMatcher.group(3);
-                String value = equalsAssignMatcher.group(4);
-                
-                processNumberAssignment(currentInfo, entityId, fieldComment, value);
-                return;
+            try {
+                Matcher equalsAssignMatcher = SIMPLE_EQUALS_PATTERN.matcher(line);
+                if (equalsAssignMatcher.find()) {
+                    String entityId = equalsAssignMatcher.group(1);
+                    String fieldComment = equalsAssignMatcher.group(3);
+                    String value = equalsAssignMatcher.group(4);
+                    
+                    String instanceName = getInstanceName(entityId);
+                    ClassInfo entityInfo = getEntityInfo(entityId);
+                    
+                    if (entityInfo != null) {
+                        FieldInfo field = entityInfo.findFieldByComment(fieldComment);
+                        if (field != null) {
+                            String setterMethod = field.getSetMethod();
+                            currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                                instanceName + "." + setterMethod,
+                                value,
+                                GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
+                            ));
+                            return true;
+                        }
+                        currentInfo.handleFailure(line, "Field not found: " + fieldComment);
+                        return false;
+                    }
+                    currentInfo.handleFailure(line, "Entity not found: " + entityId);
+                    return false;
+                }
+                currentInfo.handleFailure(line, "Failed to match number assignment pattern");
+            } catch (Exception e) {
+                logger.error("Failed to process number assignment", e);
+                currentInfo.handleFailure(line, "Exception: " + e.getMessage());
             }
         }
-
-        logger.warn("Unrecognized assignment line: {}", line);
+        return false;
     }
 
-    // 添加新方法处理数值赋值
-    private void processNumberAssignment(GeneratedType2JavaInfo currentInfo,
-            String entityId, String fieldComment, String value) {
-        String instanceName = getInstanceName(entityId);
-        ClassInfo entityInfo = getEntityInfo(entityId);
-        
-        if (entityInfo != null) {
-            FieldInfo field = entityInfo.findFieldByComment(fieldComment);
-            if (field != null) {
-                String setterMethod = field.getSetMethod();
-                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                    instanceName + "." + setterMethod,
-                    value,
-                    GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
-                ));
-                logger.info("Added number assignment: {}.{}({})",
-                    instanceName, setterMethod, value);
-            } else {
-                logger.error("Could not find field info for comment: {}", fieldComment);
-            }
-        } else {
-            logger.error("Could not find entity info for: {}", entityId);
-        }
-    }
-
-    private void processEntityToEntityAssignment(String line, GeneratedType2JavaInfo currentInfo) {
+    private boolean processEntityToEntityAssignment(String line, GeneratedType2JavaInfo currentInfo) {
         // 提取源实体和目标实体
         Matcher sourceMatcher = ENTITY_PATTERN.matcher(line);
-        if (sourceMatcher.find()) {
-            String targetEntityId = sourceMatcher.group(1);  // 获取第一个括号内的实体ID
-            String targetFieldComment = sourceMatcher.group(3);
-            
-            // 查找第二个实体引用
-            String remaining = line.substring(sourceMatcher.end());
-            Matcher targetMatcher = ENTITY_PATTERN.matcher(remaining);
-            if (targetMatcher.find()) {
-                String sourceEntityId = targetMatcher.group(1);  // 获取第一个括号内的实体ID
-                String sourceFieldComment = targetMatcher.group(3);
-                
-                logger.info("Processing entity assignment: {} -> {}", 
-                    targetEntityId + "." + targetFieldComment,
-                    sourceEntityId + "." + sourceFieldComment);
-                
-                processEntityAssignment(currentInfo, 
-                    targetEntityId, targetFieldComment,
-                    sourceEntityId, sourceFieldComment);
-            }
+        if (!sourceMatcher.find()) {
+            currentInfo.handleFailure(line, "Failed to match source entity pattern");
+            return false;
         }
-    }
 
-    private void processEntityAssignment(GeneratedType2JavaInfo currentInfo,
-            String targetEntityId, String targetFieldComment,
-            String sourceEntityId, String sourceFieldComment) {
+        String targetEntityId = sourceMatcher.group(1);
+        String targetFieldComment = sourceMatcher.group(3);
         
-        String targetInstanceName = getInstanceName(targetEntityId);
-        String sourceInstanceName = getInstanceName(sourceEntityId);
+        // 查找第二个实体引用
+        String remaining = line.substring(sourceMatcher.end());
+        Matcher targetMatcher = ENTITY_PATTERN.matcher(remaining);
+        if (!targetMatcher.find()) {
+            currentInfo.handleFailure(line, "Failed to match target entity pattern");
+            return false;
+        }
+
+        String sourceEntityId = targetMatcher.group(1);
+        String sourceFieldComment = targetMatcher.group(3);
         
-        ClassInfo targetEntityInfo = getEntityInfo(targetEntityId);
-        ClassInfo sourceEntityInfo = getEntityInfo(sourceEntityId);
-        
-        if (targetEntityInfo != null && sourceEntityInfo != null) {
+        try {
+            String targetInstanceName = getInstanceName(targetEntityId);
+            String sourceInstanceName = getInstanceName(sourceEntityId);
+            
+            ClassInfo targetEntityInfo = getEntityInfo(targetEntityId);
+            ClassInfo sourceEntityInfo = getEntityInfo(sourceEntityId);
+            
+            if (targetEntityInfo == null || sourceEntityInfo == null) {
+                currentInfo.handleFailure(line, "Entity info not found");
+                return false;
+            }
+
             FieldInfo targetField = targetEntityInfo.findFieldByComment(targetFieldComment);
             FieldInfo sourceField = sourceEntityInfo.findFieldByComment(sourceFieldComment);
             
-            if (targetField != null && sourceField != null) {
-                String sourceValue = sourceInstanceName + "." + sourceField.getGetMethod() + "()";
-                String setterMethod = targetField.getSetMethod();
-                
-                currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
-                    targetInstanceName + "." + setterMethod,
-                    sourceValue,
-                    GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
-                ));
-                
-                logger.info("Added entity field assignment: {}.{}({}.{}())",
-                    targetInstanceName, setterMethod,
-                    sourceInstanceName, sourceField.getGetMethod());
-            } else {
-                logger.error("Could not find field info - target: {}, source: {}", 
-                    targetFieldComment, sourceFieldComment);
+            if (targetField == null || sourceField == null) {
+                currentInfo.handleFailure(line, "Field info not found");
+                return false;
             }
-        } else {
-            logger.error("Could not find entity info - target: {}, source: {}", 
-                targetEntityId, sourceEntityId);
+
+            String sourceValue = sourceInstanceName + "." + sourceField.getGetMethod() + "()";
+            String setterMethod = targetField.getSetMethod();
+            
+            currentInfo.addAssignment(new GeneratedType2JavaInfo.Assignment(
+                targetInstanceName + "." + setterMethod,
+                sourceValue,
+                GeneratedType2JavaInfo.Assignment.AssignmentType.ENTITY_FIELD
+            ));
+            
+            return true;
+        } catch (Exception e) {
+            logger.error("Error processing entity assignment", e);
+            currentInfo.handleFailure(line, "Exception: " + e.getMessage());
+            return false;
         }
     }
 
