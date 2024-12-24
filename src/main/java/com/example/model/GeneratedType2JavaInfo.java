@@ -23,7 +23,19 @@ public class GeneratedType2JavaInfo {
         this.assignments.add(assignment);
     }
 
+    private boolean hasTodoForText(String text) {
+        return assignments.stream()
+            .anyMatch(assignment -> 
+                assignment.getType() == Assignment.AssignmentType.TODO && 
+                text.equals(assignment.getTarget()));
+    }
+
     public void handleFailure(String originalText, String reason) {
+        if (hasTodoForText(originalText)) {
+            logger.debug("TODO already exists for text: {}", originalText);
+            return;
+        }
+        
         logger.warn("Failed to process text: {} (Reason: {})", originalText, reason);
         assignments.add(new Assignment(
             originalText,
@@ -136,6 +148,14 @@ public class GeneratedType2JavaInfo {
                 return "false";
             }
             return value;
+        }
+
+        public AssignmentType getType() {
+            return type;
+        }
+
+        public String getTarget() {
+            return target;
         }
     }
 
