@@ -1,5 +1,6 @@
 type1:
   inputFile: input/t1.txt
+  defineFile: input/define.txt
   entityFile: 
     - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
     - Ｌ０２(L00)KKK=input/TestTable2BaseEntity.java
