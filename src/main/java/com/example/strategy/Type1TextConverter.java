@@ -21,10 +21,12 @@ public class Type1TextConverter implements TextConverter {
     private static final Pattern ENTITY_PATTERN = 
         Pattern.compile("項目「[^(]*?\\(([^()]*(?:\\([^()]*\\)[^()]*)*?)\\)[^.]*\\.(\\(([^)]+)\\))」");
     private static final Pattern STRING_PATTERN = Pattern.compile("\"([^\"]*)\"");
-    private static final Pattern DATE_PATTERN = Pattern.compile("システム日付|��の日付");
+    private static final Pattern DATE_PATTERN = Pattern.compile("システム日付|����付");
     private static final Pattern SPACE_PATTERN = Pattern.compile("スペース|空白");
     private static final Pattern BLANK_PATTERN = Pattern.compile(
         "項目「([^」]*)\\.(\\(([^)]+)\\))」に[　\\s]*(ブランク|ﾌﾞﾗﾝｸ)[　\\s]*を代入します[。]?");
+    private static final Pattern ENTITY_TO_ENTITY_PATTERN = 
+        Pattern.compile("項目「[^」]*?\\(([^」]*?(?:\\([^」]*?\\)[^」]*?)*)\\)[^」]*?\\.(\\(([^)]+)\\))\\s*」");
     
     private Map<String, String> entityInstances;  // 添加实例名映射
     private Map<String, String> entityFiles;  // 添加实体文件映射
@@ -56,11 +58,12 @@ public class Type1TextConverter implements TextConverter {
             if (tryProcessBlankAssignment(line, result) ||
                 tryProcessNumberAssignment(line, result) ||
                 tryProcessBooleanAssignment(line, result) ||
+                tryProcessEntityToEntityAssignment(line, result) ||
                 tryProcessStringAssignment(line, result)) {
                 return result.getCode();
             }
             
-            // 如果所有处理方式都失败了
+            // 如所有处理方式都失败了
             result.setFailure(line, "No matching pattern found");
             return result.getCode();
             
@@ -274,65 +277,84 @@ public class Type1TextConverter implements TextConverter {
     }
 
     private boolean tryProcessEntityToEntityAssignment(String line, GeneratedType1JavaInfo result) {
-        // 处理实体间赋值，例如：項目「手袋(Ｌ０１).(常務コード)」に 項目「z3333(Ｌ０３).(常務コード) 」を代入します
+        // 基本检查
         if (!line.contains("」に") || !line.contains("」を") || !line.contains("代入します")) {
             return false;
         }
 
-        // 提取目标实体和字段
-        Matcher targetMatcher = COMMENT_PATTERN.matcher(line);
-        if (!targetMatcher.find()) {
-            result.setFailure(line, "No target entity pattern found");
+        // 先分割成两部分
+        String[] parts = line.split("」に\\s*項目「");
+        if (parts.length != 2) {
+            logger.debug("Cannot split line into two parts: {}", line);
+            result.setFailure(line, "Invalid format");
             return true;
         }
 
-        String targetEntityId = targetMatcher.group(1);
-        String targetComment = targetMatcher.group(3).trim();
-
-        // 提取源实体和字段
-        String remaining = line.substring(targetMatcher.end());
-        Matcher sourceMatcher = COMMENT_PATTERN.matcher(remaining);
+        // 处理第一个实体（目标实体）
+        String firstPart = parts[0] + "」";
+        Matcher sourceMatcher = ENTITY_TO_ENTITY_PATTERN.matcher(firstPart);
         if (!sourceMatcher.find()) {
-            result.setFailure(line, "No source entity pattern found");
+            logger.debug("Failed to match first entity in: {}", firstPart);
+            result.setFailure(line, "Failed to match first entity pattern");
             return true;
         }
 
-        String sourceEntityId = sourceMatcher.group(1);
-        String sourceComment = sourceMatcher.group(3).trim();
+        String targetEntityId = sourceMatcher.group(1);
+        String targetFieldComment = sourceMatcher.group(3);
+        logger.debug("Found target entity - id: [{}], comment: [{}]", targetEntityId, targetFieldComment);
 
-        // 获取实例名和实体信息
-        String targetInstanceName = getInstanceName(targetEntityId);
-        String sourceInstanceName = getInstanceName(sourceEntityId);
-        ClassInfo targetEntityInfo = getEntityInfo(targetEntityId);
-        ClassInfo sourceEntityInfo = getEntityInfo(sourceEntityId);
-
-        if (targetEntityInfo == null || sourceEntityInfo == null) {
-            result.setFailure(line, "Entity info not found");
+        // 处理第二个实体（源实体）
+        String secondPart = "項目「" + parts[1].trim();  // 添加trim()处理
+        logger.debug("Processing second part: [{}]", secondPart);
+        Matcher targetMatcher = ENTITY_TO_ENTITY_PATTERN.matcher(secondPart);
+        if (!targetMatcher.find()) {
+            logger.debug("Failed to match second entity in: {}", secondPart);
+            result.setFailure(line, "Failed to match second entity pattern");
             return true;
         }
 
-        // 获取字段信息
-        FieldInfo targetField = targetEntityInfo.findFieldByComment(targetComment);
-        FieldInfo sourceField = sourceEntityInfo.findFieldByComment(sourceComment);
+        String sourceEntityId = targetMatcher.group(1);
+        String sourceFieldComment = targetMatcher.group(3);
+        logger.debug("Found source entity - id: [{}], comment: [{}]", sourceEntityId, sourceFieldComment);
 
-        if (targetField == null || sourceField == null) {
-            result.setFailure(line, "Field info not found");
+        try {
+            String targetInstanceName = getInstanceName(targetEntityId);
+            String sourceInstanceName = getInstanceName(sourceEntityId);
+            
+            ClassInfo targetEntityInfo = getEntityInfo(targetEntityId);
+            ClassInfo sourceEntityInfo = getEntityInfo(sourceEntityId);
+            
+            if (targetEntityInfo == null || sourceEntityInfo == null) {
+                result.setFailure(line, "Entity info not found");
+                return true;
+            }
+
+            FieldInfo targetField = targetEntityInfo.findFieldByComment(targetFieldComment);
+            FieldInfo sourceField = sourceEntityInfo.findFieldByComment(sourceFieldComment);
+            
+            if (targetField == null || sourceField == null) {
+                result.setFailure(line, "Field info not found");
+                return true;
+            }
+
+            String sourceValue = sourceInstanceName + "." + sourceField.getGetMethod() + "()";
+            String setterMethod = targetField.getSetMethod();
+            
+            result.setSuccessCode(String.format("%s.%s(%s);", 
+                targetInstanceName, 
+                setterMethod, 
+                sourceValue));
+            
+            return true;
+        } catch (Exception e) {
+            logger.error("Error processing entity assignment", e);
+            result.setFailure(line, "Exception: " + e.getMessage());
             return true;
         }
-
-        // 生成代码
-        String code = String.format("%s.%s(%s.%s());",
-            targetInstanceName,
-            targetField.getSetMethod(),
-            sourceInstanceName,
-            sourceField.getGetMethod());
-        
-        result.setSuccessCode(code);
-        return true;
     }
 
     private boolean tryProcessRightAlignedAssignment(String line, GeneratedType1JavaInfo result) {
-        // 处理右对齐赋值，例如：項目「手袋(Ｌ０１).(常務コード)」に 項目「z3333(Ｌ０３).(常務コード) 」を右詰で代入します
+        // 处理右对齐赋值，例如：項目「手袋(Ｌ０１).(常務コード)」に 項目「z3333(Ｌ０３).(常務コード) 」を右詰で入します
         if (!line.contains("右詰で")) {
             return false;
         }
@@ -391,7 +413,7 @@ public class Type1TextConverter implements TextConverter {
 
     private boolean tryProcessLeftAlignedAssignment(String line, GeneratedType1JavaInfo result) {
         // 处理左对齐赋值
-        if (!line.contains("左詰で")) {
+        if (!line.contains("左詰")) {
             return false;
         }
 
