@@ -2,8 +2,12 @@ type1:
   inputFile: input/t1.txt
   entityFile: 
     - 手袋(Ｌ０１)=input/TestTable1BaseEntity.java
+    - Ｌ０２(L00)KKK=input/TestTable2BaseEntity.java
+    - Ｌ０３(L11)TTT=input/TestTable3BaseEntity.java
   entityInstance:
-    - 手袋(Ｌ０１)=test001
+    - 手袋(Ｌ０１)=testTable1
+    - Ｌ０２(L00)KKK=test222
+    - Ｌ０３(L11)TTT=testTable333
   outputFile: output/GeneratedCode.java
 type2:
   inputFile: input/t2.txt
