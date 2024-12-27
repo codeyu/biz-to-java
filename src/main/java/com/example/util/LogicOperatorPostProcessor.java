@@ -25,6 +25,8 @@ public class LogicOperatorPostProcessor {
 
     public void setEntityInfos(Map<String, ClassInfo> entityInfos) {
         this.entityInfos = entityInfos;
+        logger.debug("EntityInfos set with {} entries", 
+            entityInfos != null ? entityInfos.size() : 0);
     }
 
     public String process(String code) {
@@ -147,9 +149,14 @@ public class LogicOperatorPostProcessor {
     }
 
     private String handleGetterComparison(String left, String operator, String right) {
-        // 如果是数字类型的getter，使用数字比较
+        logger.debug("Starting handleGetterComparison - left: [{}], operator: [{}], right: [{}]", 
+            left, operator, right);
+
+        // 获取类型信息
         String leftType = getTypeInfo(left);
-        String  functionName = "";
+        logger.debug("Got left type: [{}]", leftType);
+
+        String functionName = "";
         switch (leftType) {
             case "Number":
                 functionName = "NumUtil";
@@ -164,35 +171,56 @@ public class LogicOperatorPostProcessor {
                 functionName = "DateUtil";
                 break;
             default:
+                logger.debug("No matching type found, using default");
                 break;
         }
+        logger.debug("Selected function name: [{}]", functionName);
+
         String functionPart = "";
         switch (operator) {
-            case "==": functionPart = functionName + ".eq";
+            case "==": 
+                functionPart = functionName + ".eq";
                 break;
-            case "!=": functionPart = "!" + functionName + ".eq";
+            case "!=": 
+                functionPart = "!" + functionName + ".eq";
                 break;
-            case ">": functionPart = functionName + ".gt";
+            case ">": 
+                functionPart = functionName + ".gt";
                 break;
-            case ">=": functionPart = functionName + ".ge";
+            case ">=": 
+                functionPart = functionName + ".ge";
                 break;
-            case "<": functionPart = functionName + ".lt";
+            case "<": 
+                functionPart = functionName + ".lt";
                 break;
-            case "<=": functionPart = functionName + ".le";
+            case "<=": 
+                functionPart = functionName + ".le";
                 break;
             default:
+                logger.debug("Unsupported operator: [{}]", operator);
                 break;
         }
-        if(!functionPart.isEmpty()){
-            return String.format("%s(%s, %s)", functionPart, left, right);
+        logger.debug("Generated function part: [{}]", functionPart);
+
+        if(!functionPart.isEmpty() && !functionName.isEmpty()) {
+            String result = String.format("%s(%s, %s)", functionPart, left, right);
+            logger.debug("Generated comparison: [{}]", result);
+            return result;
         }
+
         // 其他情况使用字符串比较
+        logger.debug("Falling back to string comparison");
         if (operator.equals("==")) {
-            return String.format("StrUtil.eq(%s, %s)", left, right);
+            String result = String.format("StrUtil.eq(%s, %s)", left, right);
+            logger.debug("Generated string equals comparison: [{}]", result);
+            return result;
         } else if (operator.equals("!=")) {
-            return String.format("!StrUtil.eq(%s, %s)", left, right);
+            String result = String.format("!StrUtil.eq(%s, %s)", left, right);
+            logger.debug("Generated string not equals comparison: [{}]", result);
+            return result;
         }
         
+        logger.debug("No comparison generated, returning null");
         return null;
     }
 
@@ -229,7 +257,7 @@ public class LogicOperatorPostProcessor {
             }
         }
         
-        // 如果找不到变量定义或者都是字符串类型，使用字符串比较
+        // 如果找不到变量定义或者都��字符串类型，使用字符串比较
         logger.debug("Using string comparison as fallback");
         if (operator.equals("==")) {
             return String.format("StrUtil.eq(%s, %s)", left, right);

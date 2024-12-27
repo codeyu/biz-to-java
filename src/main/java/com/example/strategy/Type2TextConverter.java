@@ -608,6 +608,25 @@ public class Type2TextConverter implements TextConverter {
 
     private List<String> processLogicConversion(List<String> generatedCodeList) {
         logger.info("Logic conversion is enabled, processing {} lines", generatedCodeList.size());
+        
+        // 确保实体信息已加载
+        if (entityInfoMap.isEmpty() && entityFiles != null) {
+            try {
+                for (Map.Entry<String, String> entry : entityFiles.entrySet()) {
+                    String entityId = entry.getKey();
+                    String filePath = entry.getValue();
+                    entityInfoMap.put(entityId, JavaFileReader.readJavaFileToModel(filePath));
+                    logger.debug("Loaded entity info for {}", entityId);
+                }
+            } catch (IOException e) {
+                logger.error("Failed to load entity files", e);
+            }
+        }
+
+        // 创建处理器并设置必要的信息
+        LogicOperatorPostProcessor logicProcessor = new LogicOperatorPostProcessor();
+        logicProcessor.setEntityInfos(entityInfoMap);
+        
         List<String> processedCode = new ArrayList<>();
         for (String code : generatedCodeList) {
             try {
@@ -621,5 +640,29 @@ public class Type2TextConverter implements TextConverter {
             }
         }
         return processedCode;
+    }
+
+    private void processLogicConversion(String code, Map<String, String> logicOperatorMapping) {
+        if (!enableLogicConversion) {
+            return;
+        }
+
+        LogicOperatorPostProcessor processor = new LogicOperatorPostProcessor();
+        processor.setVariableDefinitions(variableDefinitions);
+        
+        // 添加这行，设置 entityInfos
+        processor.setEntityInfos(entityInfoMap);
+        
+        String processedCode = processor.process(code);
+        if (!code.equals(processedCode)) {
+            logger.info("Logic conversion applied:\nBefore: {}\nAfter: {}", code, processedCode);
+            // 处理逻辑运算符映射
+            for (Map.Entry<String, String> entry : logicOperatorMapping.entrySet()) {
+                processedCode = processedCode.replace(entry.getKey(), entry.getValue());
+            }
+            convertedCode.append(processedCode).append("\n");
+        } else {
+            convertedCode.append(code).append("\n");
+        }
     }
 } 
