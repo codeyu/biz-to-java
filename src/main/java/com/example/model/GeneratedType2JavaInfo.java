@@ -73,14 +73,20 @@ public class GeneratedType2JavaInfo {
         private String leftSide;
         private String operator;
         private String rightSide;
+        private boolean isError;
 
-        public ConditionPart(String leftSide, String operator, String rightSide) {
+        public ConditionPart(String leftSide, String operator, String rightSide, boolean isError) {
             this.leftSide = leftSide;
             this.operator = operator;
             this.rightSide = rightSide;
+            this.isError = isError;
         }
 
         public String generateCode() {
+            if (isError) {
+                return String.format("//IFのERROR: [%s %s %s]", 
+                    leftSide, operator, rightSide);
+            }
             return String.format("%s %s %s", 
                 convertValue(leftSide),
                 convertOperator(operator),

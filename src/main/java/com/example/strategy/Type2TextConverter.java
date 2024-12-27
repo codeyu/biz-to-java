@@ -235,12 +235,20 @@ public class Type2TextConverter implements TextConverter {
                 conditionInfo.addPart(new GeneratedType2JavaInfo.ConditionPart(
                     leftValue,
                     op,
-                    rightValue
+                    rightValue,
+                    false  // 正常的条件
                 ));
                 return true;
             } else {
                 logger.error("Failed to extract values - left: [{}], right: [{}]", 
                     leftValue, rightValue);
+                // 添加错误的条件部分
+                conditionInfo.addPart(new GeneratedType2JavaInfo.ConditionPart(
+                    leftSide,  // 原始的左值
+                    op,        // 原始的操作符
+                    rightSide, // 原始的右值
+                    true      // 标记为错误
+                ));
                 return false;
             }
         } else {
@@ -519,7 +527,7 @@ public class Type2TextConverter implements TextConverter {
     }
 
     private boolean processEntityToEntityAssignment(String line, GeneratedType2JavaInfo currentInfo) {
-        // 提取源实体和目标实体
+        // 提取源实体和目���实体
         Matcher sourceMatcher = ENTITY_PATTERN.matcher(line);
         if (!sourceMatcher.find()) {
             currentInfo.handleFailure(line, "Failed to match source entity pattern");

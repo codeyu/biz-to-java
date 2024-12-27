@@ -35,7 +35,10 @@ public class LogicOperatorPostProcessor {
             logger.debug("Not an if statement, returning original code");
             return code;
         }
-
+        if(code.contains("//IFのERROR:")) {
+            logger.debug("IFのERROR: found, returning error code");
+            return processError(code);
+        }
         Matcher ifMatcher = IF_PATTERN.matcher(code);
         if (!ifMatcher.find()) {
             logger.debug("No if condition found, returning original code");
@@ -53,6 +56,30 @@ public class LogicOperatorPostProcessor {
         }
         
         return code;
+    }
+
+    private String processError(String code) {
+        logger.debug("Processing error code: {}", code);
+        
+        // 首先移除所有的 //IFのERROR:
+        String cleanCode = code.replaceAll("//IFのERROR:\\s*", "");
+        logger.debug("Code after removing TODO: {}", cleanCode);
+        
+        // 按行分割
+        String[] lines = cleanCode.split("\n");
+        
+        // 在每行前添加 //TODO:
+        StringBuilder result = new StringBuilder();
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) {
+                result.append("//TODO: ").append(line).append("\n");
+            } else {
+                result.append(line).append("\n");  // 保持空行不变
+            }
+        }
+        
+        logger.debug("Final processed error code: {}", result.toString());
+        return result.toString();
     }
 
     private String processCondition(String condition) {
@@ -257,7 +284,7 @@ public class LogicOperatorPostProcessor {
             }
         }
         
-        // 如果找不到变量定义或者都��字符串类型，使用字符串比较
+        // 如果找不到变量定义或者都是字符串类型，使用字符串比较
         logger.debug("Using string comparison as fallback");
         if (operator.equals("==")) {
             return String.format("StrUtil.eq(%s, %s)", left, right);
