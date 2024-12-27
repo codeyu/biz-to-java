@@ -51,6 +51,12 @@ public class FieldInfo {
         );
     }
 
+    public boolean isLongType() {
+        return fieldType != null && (
+            fieldType.equals("Long") 
+        );
+    }
+
     public boolean isStringType() {
         return fieldType != null && fieldType.equals("String");
     }

@@ -6,6 +6,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Map;
 import com.example.model.VariableDefinition;
+import com.example.model.ClassInfo;
+import com.example.model.FieldInfo;
 
 public class LogicOperatorPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(LogicOperatorPostProcessor.class);
@@ -15,9 +17,14 @@ public class LogicOperatorPostProcessor {
         Pattern.compile("([^=!<>\\s]+)\\s*(==|!=|>=|<=|>|<)\\s*([^\\s&|]+)");
 
     private Map<String, VariableDefinition> variableDefinitions;
+    private Map<String, ClassInfo> entityInfos;
 
     public void setVariableDefinitions(Map<String, VariableDefinition> definitions) {
         this.variableDefinitions = definitions;
+    }
+
+    public void setEntityInfos(Map<String, ClassInfo> entityInfos) {
+        this.entityInfos = entityInfos;
     }
 
     public String process(String code) {
@@ -95,27 +102,90 @@ public class LogicOperatorPostProcessor {
     }
 
     private boolean isNumericGetter(String expression) {
-        // 暂时通过方法名判断，后续可以改为通过 FieldInfo 判断
-        return expression != null && (
-            expression.contains("getTestField5") || 
-            expression.contains("getTestField6") ||
-            expression.contains("getTestField8")
-        );
+        if (expression == null) {
+            return false;
+        }
+        
+        // 从表达式中提取字段信息
+        for (ClassInfo entityInfo : entityInfos.values()) {
+            for (FieldInfo field : entityInfo.getFields()) {
+                String getterMethod = field.getGetMethod();
+                if (expression.contains(getterMethod)) {
+                    return field.isNumericType();
+                }
+            }
+        }
+        return false;
+    }
+
+    private String getTypeInfo(String expression) {
+        if (expression == null) {
+            return "";
+        }
+        
+        // 从表达式中提取字段信息
+        for (ClassInfo entityInfo : entityInfos.values()) {
+            for (FieldInfo field : entityInfo.getFields()) {
+                String getterMethod = field.getGetMethod();
+                if (expression.contains(getterMethod)) {
+                    if(field.isNumericType()){
+                        return "Number";
+                    }
+                    if(field.isLongType()){
+                        return "Long";
+                    }
+                    if(field.isStringType()){
+                        return "String";
+                    }
+                    if(field.isDateType()){
+                        return "Date";
+                    }
+                }
+            }
+        }
+        return "";
     }
 
     private String handleGetterComparison(String left, String operator, String right) {
         // 如果是数字类型的getter，使用数字比较
-        if (isNumericGetter(left) || isNumericGetter(right)) {
-            switch (operator) {
-                case "==": return String.format("NumUtil.eq(%s, %s)", left, right);
-                case "!=": return String.format("!NumUtil.eq(%s, %s)", left, right);
-                case ">": return String.format("NumUtil.gt(%s, %s)", left, right);
-                case ">=": return String.format("NumUtil.ge(%s, %s)", left, right);
-                case "<": return String.format("NumUtil.lt(%s, %s)", left, right);
-                case "<=": return String.format("NumUtil.le(%s, %s)", left, right);
-            }
+        String leftType = getTypeInfo(left);
+        String  functionName = "";
+        switch (leftType) {
+            case "Number":
+                functionName = "NumUtil";
+                break;
+            case "Long":
+                functionName = "NumUtil";
+                break;
+            case "String":
+                functionName = "StrUtil";
+                break;
+            case "Date":
+                functionName = "DateUtil";
+                break;
+            default:
+                break;
         }
-        
+        String functionPart = "";
+        switch (operator) {
+            case "==": functionPart = functionName + ".eq";
+                break;
+            case "!=": functionPart = "!" + functionName + ".eq";
+                break;
+            case ">": functionPart = functionName + ".gt";
+                break;
+            case ">=": functionPart = functionName + ".ge";
+                break;
+            case "<": functionPart = functionName + ".lt";
+                break;
+            case "<=": functionPart = functionName + ".le";
+                break;
+            default:
+                break;
+        }
+        if(!functionPart.isEmpty()){
+            return String.format("%s(%s, %s)", functionPart, left, right);
+        }
         // 其他情况使用字符串比较
         if (operator.equals("==")) {
             return String.format("StrUtil.eq(%s, %s)", left, right);
