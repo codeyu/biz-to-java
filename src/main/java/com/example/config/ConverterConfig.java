@@ -26,6 +26,7 @@ public class ConverterConfig {
     private final String baseDir;
     private boolean enableLogicConversion;  // 添加这行
     private String defineFile;  // 添加字段
+    private Type3Config type3;  // 添加 type3 配置
 
     public ConverterConfig(String converterType) {
         this.converterType = converterType;
@@ -62,35 +63,47 @@ public class ConverterConfig {
                 throw new RuntimeException("Configuration not found for converter type: " + converterType);
             }
             
+            // Type3 使用不同的配置加载方式
+            if ("type3".equals(converterType)) {
+                // 只加载 Type3 需要的配置
+                this.type3 = new Type3Config();
+                this.type3.setInputFile(resolvePath((String) converterConfig.get("inputFile")));
+                logger.info("Loaded Type3 config with input file: {}", this.type3.getInputFile());
+                return;  // 直接返回，不处理其他配置
+            }
+            
+            // Type1 和 Type2 的配置加载
             this.inputFile = resolvePath((String) converterConfig.get("inputFile"));
             this.outputFile = resolvePath((String) converterConfig.get("outputFile"));
             
             // 处理实体文件映射
             List<String> entityFilesList = (List<String>) converterConfig.get("entityFile");
-            for (String mapping : entityFilesList) {
-                String[] parts = mapping.split("=");
-                if (parts.length == 2) {
-                    entityFiles.put(parts[0].trim(), resolvePath(parts[1].trim()));
+            if (entityFilesList != null) {  // 添加空检查
+                for (String mapping : entityFilesList) {
+                    String[] parts = mapping.split("=");
+                    if (parts.length == 2) {
+                        entityFiles.put(parts[0].trim(), resolvePath(parts[1].trim()));
+                    }
                 }
             }
             
             // 处理实体实例名映射
             List<String> entityInstancesList = (List<String>) converterConfig.get("entityInstance");
-            for (String mapping : entityInstancesList) {
-                String[] parts = mapping.split("=");
-                if (parts.length == 2) {
-                    entityInstances.put(parts[0].trim(), parts[1].trim());
+            if (entityInstancesList != null) {  // 添加空检查
+                for (String mapping : entityInstancesList) {
+                    String[] parts = mapping.split("=");
+                    if (parts.length == 2) {
+                        entityInstances.put(parts[0].trim(), parts[1].trim());
+                    }
                 }
             }
             
             // 加载逻辑转换开关
             Object enableLogic = converterConfig.get("enableLogicConversion");
             this.enableLogicConversion = enableLogic != null && (Boolean) enableLogic;
-            logger.info("Logic conversion enabled: {}", this.enableLogicConversion);
             
             // 加载 defineFile 配置
             this.defineFile = resolvePath((String) converterConfig.get("defineFile"));
-            logger.info("Loaded define file path: {}", this.defineFile);
             
             logger.info("Configuration loaded successfully for {}", converterType);
         } catch (IOException e) {
@@ -122,5 +135,26 @@ public class ConverterConfig {
     }
     public String getDefineFile() {
         return defineFile;
+    }
+
+    public Type3Config getType3() {
+        return type3;
+    }
+
+    public void setType3(Type3Config type3) {
+        this.type3 = type3;
+    }
+
+    // 添加内部类
+    public static class Type3Config {
+        private String inputFile;
+
+        public String getInputFile() {
+            return inputFile;
+        }
+
+        public void setInputFile(String inputFile) {
+            this.inputFile = inputFile;
+        }
     }
 } 

@@ -35,6 +35,8 @@ public class Type2TextConverter implements TextConverter {
     private Map<String, String> entityInstances;
     private boolean enableLogicConversion = false;
     private LogicOperatorPostProcessor logicProcessor;
+    private Map<String, VariableDefinition> variableDefinitions = new HashMap<>();
+    private StringBuilder convertedCode = new StringBuilder();
 
     public void setEntityFiles(Map<String, String> entityFiles) {
         this.entityFiles = entityFiles;
@@ -527,7 +529,7 @@ public class Type2TextConverter implements TextConverter {
     }
 
     private boolean processEntityToEntityAssignment(String line, GeneratedType2JavaInfo currentInfo) {
-        // 提取源实体和目���实体
+        // 提取源实体和目标实体
         Matcher sourceMatcher = ENTITY_PATTERN.matcher(line);
         if (!sourceMatcher.find()) {
             currentInfo.handleFailure(line, "Failed to match source entity pattern");
@@ -655,21 +657,28 @@ public class Type2TextConverter implements TextConverter {
             return;
         }
 
-        LogicOperatorPostProcessor processor = new LogicOperatorPostProcessor();
-        processor.setVariableDefinitions(variableDefinitions);
-        
-        // 添加这行，设置 entityInfos
-        processor.setEntityInfos(entityInfoMap);
-        
-        String processedCode = processor.process(code);
-        if (!code.equals(processedCode)) {
-            logger.info("Logic conversion applied:\nBefore: {}\nAfter: {}", code, processedCode);
-            // 处理逻辑运算符映射
-            for (Map.Entry<String, String> entry : logicOperatorMapping.entrySet()) {
-                processedCode = processedCode.replace(entry.getKey(), entry.getValue());
+        try {
+            if (logicProcessor == null) {
+                logicProcessor = new LogicOperatorPostProcessor();
+                logicProcessor.setEntityInfos(entityInfoMap);
+                // 设置变量定义
+                logicProcessor.setVariableDefinitions(variableDefinitions);
             }
-            convertedCode.append(processedCode).append("\n");
-        } else {
+            
+            String processedCode = logicProcessor.process(code);
+            
+            if (!code.equals(processedCode)) {
+                logger.info("Logic conversion applied:\nBefore: {}\nAfter: {}", code, processedCode);
+                // 处理逻辑运算符映射
+                for (Map.Entry<String, String> entry : logicOperatorMapping.entrySet()) {
+                    processedCode = processedCode.replace(entry.getKey(), entry.getValue());
+                }
+                convertedCode.append(processedCode).append("\n");
+            } else {
+                convertedCode.append(code).append("\n");
+            }
+        } catch (Exception e) {
+            logger.error("Error in logic conversion", e);
             convertedCode.append(code).append("\n");
         }
     }

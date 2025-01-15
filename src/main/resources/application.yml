@@ -34,3 +34,5 @@ type2:
     ">num": "NumUtil.gt"
     "<num": "NumUtil.lt"
   enableLogicConversion: true
+type3:
+  inputFile: input/arrays.xlsx
