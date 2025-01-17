@@ -6,6 +6,7 @@ import com.example.strategy.TextConverter;
 import com.example.strategy.Type1TextConverter;
 import com.example.strategy.Type2TextConverter;
 import com.example.strategy.Type3TextConverter;
+import com.example.strategy.Type4TextConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,9 +33,12 @@ public class TextToJavaConverter {
             logger.info("Using converter type: {}", converterType);
             ConverterConfig config = new ConverterConfig(converterType);
             
-            // Type3 使用独立的处理流程
+            // Type3 和 Type4 使用独立的处理流程
             if ("type3".equals(converterType.toLowerCase())) {
                 processType3(config);
+                return;
+            } else if ("type4".equals(converterType.toLowerCase())) {
+                processType4(config);
                 return;
             }
             
@@ -89,6 +93,38 @@ public class TextToJavaConverter {
             logger.info("Type3 code generation completed. Output file: {}", outputFile.getPath());
         } catch (IOException e) {
             logger.error("Error in Type3 processing", e);
+        }
+    }
+
+    private static void processType4(ConverterConfig config) {
+        logger.info("Processing Type4 conversion");
+        try {
+            Type4TextConverter converter = new Type4TextConverter();
+            List<String> generatedCode = converter.convertExcelFile(config.getType4().getInputFile());
+            
+            // 创建输出目录
+            File outputFile = new File("output/GeneratedCode4.java");
+            outputFile.getParentFile().mkdirs();
+            
+            // 写入生成的代码
+            try (PrintWriter writer = new PrintWriter(
+                new OutputStreamWriter(
+                    new FileOutputStream(outputFile), "UTF-8"))) {
+                
+                // 写入文件头注释
+                writer.println("/**");
+                writer.println(" * Generated code from " + config.getType4().getInputFile());
+                writer.println(" */");
+                writer.println();
+                
+                for (String code : generatedCode) {
+                    writer.println(code);
+                }
+            }
+            
+            logger.info("Type4 code generation completed. Output file: {}", outputFile.getPath());
+        } catch (IOException e) {
+            logger.error("Error in Type4 processing", e);
         }
     }
 

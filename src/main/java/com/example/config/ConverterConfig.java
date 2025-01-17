@@ -27,6 +27,7 @@ public class ConverterConfig {
     private boolean enableLogicConversion;  // 添加这行
     private String defineFile;  // 添加字段
     private Type3Config type3;  // 添加 type3 配置
+    private Type4Config type4;  // 添加 type4 配置
 
     public ConverterConfig(String converterType) {
         this.converterType = converterType;
@@ -63,13 +64,19 @@ public class ConverterConfig {
                 throw new RuntimeException("Configuration not found for converter type: " + converterType);
             }
             
-            // Type3 使用不同的配置加载方式
+            // Type3 和 Type4 使用不同的配置加载方式
             if ("type3".equals(converterType)) {
-                // 只加载 Type3 需要的配置
+                // Type3 配置加载
                 this.type3 = new Type3Config();
                 this.type3.setInputFile(resolvePath((String) converterConfig.get("inputFile")));
                 logger.info("Loaded Type3 config with input file: {}", this.type3.getInputFile());
-                return;  // 直接返回，不处理其他配置
+                return;
+            } else if ("type4".equals(converterType)) {
+                // Type4 配置加载
+                this.type4 = new Type4Config();
+                this.type4.setInputFile(resolvePath((String) converterConfig.get("inputFile")));
+                logger.info("Loaded Type4 config with input file: {}", this.type4.getInputFile());
+                return;
             }
             
             // Type1 和 Type2 的配置加载
@@ -145,8 +152,28 @@ public class ConverterConfig {
         this.type3 = type3;
     }
 
+    public Type4Config getType4() {
+        return type4;
+    }
+
+    public void setType4(Type4Config type4) {
+        this.type4 = type4;
+    }
+
     // 添加内部类
     public static class Type3Config {
+        private String inputFile;
+
+        public String getInputFile() {
+            return inputFile;
+        }
+
+        public void setInputFile(String inputFile) {
+            this.inputFile = inputFile;
+        }
+    }
+
+    public static class Type4Config {
         private String inputFile;
 
         public String getInputFile() {

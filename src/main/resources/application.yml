@@ -36,3 +36,5 @@ type2:
   enableLogicConversion: true
 type3:
   inputFile: input/arrays.xlsx
+type4:
+  inputFile: input/variables.xlsx
