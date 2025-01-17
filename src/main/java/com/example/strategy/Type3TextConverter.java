@@ -20,6 +20,7 @@ public class Type3TextConverter {
     // 添加成员变量保存当前处理的变量信息
     private String currentVarName;
     private String currentJavaType;
+    private String currentComment;  // 添加注释变量
     private List<String> currentDefaultValues = new ArrayList<>();
 
     public List<String> convertExcelFile(String filePath) {
@@ -78,6 +79,7 @@ public class Type3TextConverter {
                 // 重置当前变量信息
                 currentVarName = null;
                 currentJavaType = null;
+                currentComment = null;  // 重置注释
                 currentDefaultValues.clear();
             }
 
@@ -85,6 +87,7 @@ public class Type3TextConverter {
             if (varName != null && !varName.trim().isEmpty()) {
                 currentVarName = varName.toLowerCase();
                 currentJavaType = convertType(getCellStringValue(row.getCell(TYPE_COL)));
+                currentComment = getCellStringValue(row.getCell(COMMENT_COL));  // 保存注释
                 if (defaultValues != null && !defaultValues.trim().isEmpty()) {
                     currentDefaultValues.addAll(Arrays.asList(defaultValues.trim().split("\\s+")));
                 }
@@ -112,6 +115,11 @@ public class Type3TextConverter {
         if (currentVarName == null) return null;
 
         StringBuilder code = new StringBuilder();
+        
+        // 添加注释
+        if (currentComment != null && !currentComment.trim().isEmpty()) {
+            code.append("    // ").append(currentComment).append("\n");
+        }
         
         // 生成数组声明
         code.append("    private ").append(currentJavaType).append("[] ")
